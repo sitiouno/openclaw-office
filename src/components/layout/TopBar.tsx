@@ -72,6 +72,10 @@ function BrandSection({
       <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] tabular-nums text-gray-400 dark:bg-gray-800 dark:text-gray-500">
         v{APP_VERSION}
       </span>
+      <div className="ml-4 flex items-center gap-2 rounded bg-zinc-900 px-3 py-1 border border-yellow-500/30 shadow-[0_0_15px_rgba(250,204,21,0.2)]">
+        <div className="flex h-5 w-5 items-center justify-center rounded bg-yellow-400 text-[10px] font-bold text-zinc-900 shadow-[0_0_10px_rgba(250,204,21,0.8)]">SU</div>
+        <span className="text-xs uppercase tracking-widest text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.8)] font-bold">SitioUno - Sucursal Miami</span>
+      </div>
       {isOfficePage && !isMobile && (
         <div className="ml-2 hidden items-center gap-5 text-xs text-gray-400 dark:text-gray-500 xl:flex">
           <span>
