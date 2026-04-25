@@ -1,8 +1,8 @@
-import { GatewayAgentEntry } from "@/gateway/types";
+import type { AgentSummary } from "@/gateway/types";
 import { Info, BookOpen } from "lucide-react";
 
 interface LocalSkillsTabProps {
-  agent: GatewayAgentEntry;
+  agent: AgentSummary;
 }
 
 export function LocalSkillsTab({ agent }: LocalSkillsTabProps) {
