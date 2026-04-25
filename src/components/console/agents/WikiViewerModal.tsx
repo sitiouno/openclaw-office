@@ -35,10 +35,10 @@ export function WikiViewerModal({ agentId, agentName, isOpen, onClose }: WikiVie
         const adapter = getAdapter();
         
         // Use standard File API from OpenClaw (via agentsFilesList and agentsFilesGet)
-        const fileNames = await adapter.agentsFilesList(agentId);
+        const fileListResult = await adapter.agentsFilesList(agentId);
         
-        // Filter only markdown files
-        const mdFiles = fileNames.filter((name: string) => name.endsWith('.md'));
+        // Filter only markdown files based on AgentFilesListResult structure
+        const mdFiles = (fileListResult.files || []).filter((f) => f.name.endsWith('.md'));
         
         if (mdFiles.length === 0) {
            if (mounted) {
@@ -52,12 +52,12 @@ export function WikiViewerModal({ agentId, agentName, isOpen, onClose }: WikiVie
         const loadedFiles: WikiFile[] = [];
         
         // Fetch content for each md file
-        for (const fileName of mdFiles) {
+        for (const fileInfo of mdFiles) {
           try {
-            const content = await adapter.agentsFilesGet(agentId, fileName);
-            loadedFiles.push({ name: fileName, content: content || "*Vacío*" });
+            const result = await adapter.agentsFilesGet(agentId, fileInfo.name);
+            loadedFiles.push({ name: fileInfo.name, content: result.file.content || "*Vacío*" });
           } catch (e) {
-            console.warn(`Failed to read ${fileName}`, e);
+            console.warn(`Failed to read ${fileInfo.name}`, e);
           }
         }
         
