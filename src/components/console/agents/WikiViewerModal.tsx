@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -10,21 +10,91 @@ interface WikiViewerModalProps {
   onClose: () => void;
 }
 
-const MOCK_FILES = [
-  { name: "index.md", content: "# Welcome to the Wiki\n\nThis is the root index file. Select a file from the sidebar to read its contents." },
-  { name: "SOUL.md", content: "# SOUL.md\n\n<identity>\nEres un agente de la red SitioUno.\n</identity>\n\n<behavioral_constraints>\nPrioriza estabilidad y rendimiento.\n</behavioral_constraints>" },
-  { name: "AGENTS.md", content: "# AGENTS.md\n\n<role>Arquitecto de Sistemas</role>\n\n<capabilities>\n1. TypeScript\n2. React/Vite\n</capabilities>" },
-  { name: "MEMORY.md", content: "# MEMORY.md\n\nHechos durables:\n- SitioUno es la matriz.\n- Jean es el CEO." }
-];
+interface WikiFile {
+  name: string;
+  content: string;
+}
 
-export function WikiViewerModal({ agentName, isOpen, onClose }: WikiViewerModalProps) {
-  const [activeFile, setActiveFile] = useState(MOCK_FILES[0]);
+export function WikiViewerModal({ agentId, agentName, isOpen, onClose }: WikiViewerModalProps) {
+  const [files, setFiles] = useState<WikiFile[]>([]);
+  const [activeFileName, setActiveFileName] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setActiveFile(MOCK_FILES[0]);
-    }
-  }, [isOpen]);
+    let mounted = true;
+    
+    const loadFiles = async () => {
+      if (!isOpen) return;
+      
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        // En lugar de mocks, forzamos un gateway exec call para leer los md del agente real
+        const res = await fetch(`/api/v1/agents/${agentId}/tools/exec`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            command: `find /home/magnus-vaos/openclaw-workspaces/${agentId} -maxdepth 1 -type f -name '*.md' -exec sh -c 'echo "---FILE_SPLIT---"; basename "{}"; cat "{}"' \\;`
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error(`API returned status: ${res.status}`);
+        }
+
+        const data = await res.json();
+        
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        const rawOutput = data.output || "";
+        const blocks = rawOutput.split("---FILE_SPLIT---\n").filter((b: string) => b.trim() !== "");
+        
+        const loadedFiles: WikiFile[] = [];
+        
+        for (const block of blocks) {
+          const lines = block.split("\n");
+          if (lines.length > 0) {
+            const fileName = lines[0].trim();
+            const fileContent = lines.slice(1).join("\n").trim();
+            if (fileName && fileName.endsWith(".md")) {
+               loadedFiles.push({ name: fileName, content: fileContent || "*Vacío*" });
+            }
+          }
+        }
+        
+        if (mounted) {
+          if (loadedFiles.length === 0) {
+            loadedFiles.push({ name: "Info.md", content: "No se encontraron archivos Markdown en la raíz del workspace."});
+          }
+          // Sort so index.md or IDENTITY.md show up early
+          loadedFiles.sort((a, b) => a.name.localeCompare(b.name));
+          setFiles(loadedFiles);
+          setActiveFileName(loadedFiles[0].name);
+        }
+      } catch (err: any) {
+        console.error("Wiki load error:", err);
+        if (mounted) {
+          setError(err.message || "Error desconocido al intentar leer los archivos del agente.");
+          setFiles([{ name: "Error.md", content: `# Error de Conexión\n\nNo se pudo leer el disco duro del agente \`${agentId}\`.\n\n**Detalle:** ${err.message}` }]);
+          setActiveFileName("Error.md");
+        }
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    loadFiles();
+    
+    return () => {
+      mounted = false;
+    };
+  }, [isOpen, agentId]);
+
+  const activeFile = useMemo(() => files.find(f => f.name === activeFileName) || null, [files, activeFileName]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -43,22 +113,25 @@ export function WikiViewerModal({ agentName, isOpen, onClose }: WikiViewerModalP
         
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
-          <div className="w-64 border-r border-gray-800 bg-zinc-900/50 overflow-y-auto">
-            <div className="p-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Files
+          <div className="w-64 border-r border-gray-800 bg-zinc-900/50 overflow-y-auto flex flex-col">
+            <div className="p-3 text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between border-b border-gray-800/50">
+              <span>Local Files</span>
+              {isLoading && <span className="animate-pulse text-yellow-500">Syncing...</span>}
             </div>
-            <div className="flex flex-col gap-1 px-2">
-              {MOCK_FILES.map((file) => (
+            
+            <div className="flex flex-col gap-1 p-2">
+              {files.map((file) => (
                 <button
                   key={file.name}
-                  onClick={() => setActiveFile(file)}
-                  className={`text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                    activeFile.name === file.name 
-                      ? "bg-purple-600/20 text-purple-400 font-medium" 
-                      : "text-gray-400 hover:bg-zinc-800 hover:text-gray-200"
+                  onClick={() => setActiveFileName(file.name)}
+                  className={`text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-2 ${
+                    activeFileName === file.name 
+                      ? "bg-purple-600/20 text-purple-400 font-medium border border-purple-500/20" 
+                      : "text-gray-400 hover:bg-zinc-800 hover:text-gray-200 border border-transparent"
                   }`}
                 >
-                  📄 {file.name}
+                  <span className="text-gray-500">📄</span> 
+                  <span className="truncate">{file.name}</span>
                 </button>
               ))}
             </div>
@@ -66,10 +139,20 @@ export function WikiViewerModal({ agentName, isOpen, onClose }: WikiViewerModalP
           
           {/* Main Content */}
           <div className="flex-1 overflow-y-auto p-8 bg-zinc-950">
-            <div className="prose prose-invert prose-purple max-w-3xl mx-auto">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {activeFile.content}
-              </ReactMarkdown>
+            <div className="prose prose-invert prose-purple max-w-4xl mx-auto">
+              {isLoading && files.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  Leyendo disco duro del agente...
+                </div>
+              ) : activeFile ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {activeFile.content}
+                </ReactMarkdown>
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-500">
+                  Selecciona un documento para visualizar.
+                </div>
+              )}
             </div>
           </div>
         </div>
