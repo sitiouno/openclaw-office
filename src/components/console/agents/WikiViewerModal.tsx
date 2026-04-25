@@ -17,7 +17,7 @@ const MOCK_FILES = [
   { name: "MEMORY.md", content: "# MEMORY.md\n\nHechos durables:\n- SitioUno es la matriz.\n- Jean es el CEO." }
 ];
 
-export function WikiViewerModal({ agentId, agentName, isOpen, onClose }: WikiViewerModalProps) {
+export function WikiViewerModal({ agentName, isOpen, onClose }: WikiViewerModalProps) {
   const [activeFile, setActiveFile] = useState(MOCK_FILES[0]);
 
   useEffect(() => {
