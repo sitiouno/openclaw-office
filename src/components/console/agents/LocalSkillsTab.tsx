@@ -8,30 +8,9 @@ interface LocalSkillsTabProps {
 }
 
 export function LocalSkillsTab({ agent }: LocalSkillsTabProps) {
-  const [opening, setOpening] = useState(false);
+  const opening = false;
   const [isWikiOpen, setIsWikiOpen] = useState(false);
 
-  const handleOpenObsidian = async () => {
-    setOpening(true);
-    try {
-      // Usar URI explícita compatible con Obsidian URI router 
-      // El nombre del vault en Obsidian suele coincidir con el nombre de la carpeta final
-      const vaultName = encodeURIComponent(agent.id);
-      
-      await fetch(`/api/v1/agents/${agent.id}/tools/exec`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          command: `xdg-open "obsidian://open?vault=${vaultName}" || xdg-open "obsidian://open?path=/home/magnus-vaos/openclaw-workspaces/${agent.id}"`,
-          background: true 
-        })
-      });
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setTimeout(() => setOpening(false), 1000);
-    }
-  };
 
   return (
     <div className="space-y-6">
