@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useEffect, useState, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { getAdapter } from "@/gateway/adapter-locator";
+import { getAdapter } from "@/gateway/adapter-provider";
 
 interface WikiViewerModalProps {
   agentId: string;
@@ -20,7 +20,7 @@ export function WikiViewerModal({ agentId, agentName, isOpen, onClose }: WikiVie
   const [files, setFiles] = useState<WikiFile[]>([]);
   const [activeFileName, setActiveFileName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
