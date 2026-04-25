@@ -1,17 +1,33 @@
 import type { AgentSummary } from "@/gateway/types";
 import { Info, BookOpen } from "lucide-react";
+import { useState } from "react";
 
 interface LocalSkillsTabProps {
   agent: AgentSummary;
 }
 
 export function LocalSkillsTab({ agent }: LocalSkillsTabProps) {
-  const handleOpenObsidian = () => {
-    // We launch via HTTP target since standard obsidian:// protocol assumes
-    // Obsidian knows the vault mapping ahead of time.
-    // However, if the browser is running on the host, a simple file:// URI 
-    // or triggering an MCP exec is safer. For now we just instruct the user.
-    alert(`Para abrir la wiki de ${agent.name} en Obsidian, abre la aplicación Obsidian y selecciona "Open Folder as Vault" apuntando a: /home/magnus-vaos/openclaw-workspaces/${agent.id}`);
+  const [opening, setOpening] = useState(false);
+
+  const handleOpenObsidian = async () => {
+    setOpening(true);
+    try {
+      // Execute the local open command via OpenClaw gateway
+      await fetch(`/api/v1/agents/${agent.id}/tools/exec`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          command: `xdg-open "obsidian://open?path=/home/magnus-vaos/openclaw-workspaces/${agent.id}"`,
+          background: true 
+        })
+      });
+      // Also fallback trigger the URI just in case they are browsing from the local host
+      window.location.href = `obsidian://open?path=/home/magnus-vaos/openclaw-workspaces/${agent.id}`;
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTimeout(() => setOpening(false), 1000);
+    }
   };
 
   return (
@@ -32,10 +48,15 @@ export function LocalSkillsTab({ agent }: LocalSkillsTabProps) {
       <div className="flex justify-end">
         <button
           onClick={handleOpenObsidian}
-          className="flex items-center gap-2 rounded-md bg-[#7c3aed] px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-purple-500/20 hover:bg-[#6d28d9] transition-all"
+          disabled={opening}
+          className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold text-white shadow-lg transition-all ${
+            opening 
+              ? "bg-[#5b21b6] opacity-70" 
+              : "bg-[#7c3aed] shadow-purple-500/20 hover:bg-[#6d28d9]"
+          }`}
         >
           <BookOpen className="h-4 w-4" />
-          Ubicación de Wiki de {agent.name}
+          {opening ? "Abriendo Obsidian..." : `Abrir Wiki de ${agent.name} en Obsidian`}
         </button>
       </div>
 
