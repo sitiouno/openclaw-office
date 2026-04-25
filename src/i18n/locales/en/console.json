@@ -6,6 +6,7 @@
     "stats": {
       "channels": "Channels",
       "skills": "Skills",
+      "local_skills": "Local Skills",
       "usage": "Provider Usage",
       "uptime": "Uptime",
       "uptimeOnline": "Online"
@@ -522,6 +523,7 @@
       "files": "Files",
       "tools": "Tools",
       "skills": "Skills",
+      "local_skills": "Local Skills",
       "channels": "Channels",
       "cronJobs": "Cron Jobs"
     },
