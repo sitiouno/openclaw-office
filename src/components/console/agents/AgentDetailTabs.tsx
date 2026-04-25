@@ -3,6 +3,7 @@ import type { AgentSummary } from "@/gateway/types";
 import { useAgentsStore, type AgentTab } from "@/store/console-stores/agents-store";
 import { ChannelsTab } from "./tabs/ChannelsTab";
 import { CronJobsTab } from "./tabs/CronJobsTab";
+import { LocalSkillsTab } from "./LocalSkillsTab";
 import { FilesTab } from "./tabs/FilesTab";
 import { OverviewTab } from "./tabs/OverviewTab";
 import { SkillsTab } from "./tabs/SkillsTab";
@@ -46,7 +47,7 @@ export function AgentDetailTabs({ agent }: AgentDetailTabsProps) {
         {activeTab === "skills" && <SkillsTab key={agent.id} agent={agent} />}
         {activeTab === "channels" && <ChannelsTab key={agent.id} agent={agent} />}
         {activeTab === "cronJobs" && <CronJobsTab key={agent.id} agent={agent} />}
-        {activeTab === "local_skills" && <LocalSkillsTab key={agent.id} agent={agent} />}
+        {activeTab === "local_skills" && <LocalSkillsTab key={agent.id} />}
       </div>
     </div>
   );

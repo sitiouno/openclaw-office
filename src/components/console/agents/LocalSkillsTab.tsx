@@ -1,14 +1,6 @@
-import { GatewayAgentEntry } from "@/gateway/types";
 import { Info } from "lucide-react";
-import { useTranslation } from "react-i18next";
 
-interface LocalSkillsTabProps {
-  agent: GatewayAgentEntry;
-}
-
-export function LocalSkillsTab({ agent }: LocalSkillsTabProps) {
-  const { t } = useTranslation("console");
-
+export function LocalSkillsTab() {
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-yellow-500/20 bg-zinc-900/50 p-4">
