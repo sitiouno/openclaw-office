@@ -25,7 +25,7 @@ export function LocalSkillsTab({ agent }: LocalSkillsTabProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          command: `xdg-open "obsidian://open?path=${vaultPath}"`,
+          command: `xdg-open "obsidian://open?vault=${agent.id}" || xdg-open "obsidian://open?path=${vaultPath}"`,
           background: true 
         })
       });
