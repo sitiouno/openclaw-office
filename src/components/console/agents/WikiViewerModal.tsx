@@ -32,73 +32,51 @@ export function WikiViewerModal({ agentId, agentName, isOpen, onClose }: WikiVie
       setError(null);
       
       try {
-        // En lugar de fetch HTTP crudo, usamos el adaptador WebSocket nativo de OpenClaw Office
-        // que ya tiene la autenticación y la conexión viva con el Gateway.
         const adapter = getAdapter();
         
-        // Hacemos el bypass enviando un RPC request custom que invoca la tool exec
-        // Asumiendo que ws-adapter.ts puede enviar requests crudos al RPC
-        const res = (await (adapter as any).rpcClient?.request("tools.call", {
-          sessionKey: `agent:${agentId}:main`,
-          tool: "exec",
-          args: {
-            command: `find /home/magnus-vaos/openclaw-workspaces/${agentId} -maxdepth 1 -type f -name '*.md' -exec sh -c 'echo "---FILE_SPLIT---"; basename "{}"; cat "{}"' \\;`
-          }
-        })) || (await (adapter as any).rpcClient?.request("agent.exec", {
-          agentId,
-          command: `find /home/magnus-vaos/openclaw-workspaces/${agentId} -maxdepth 1 -type f -name '*.md' -exec sh -c 'echo "---FILE_SPLIT---"; basename "{}"; cat "{}"' \\;`
-        }));
+        // Use standard File API from OpenClaw (via agentsFilesList and agentsFilesGet)
+        const fileNames = await adapter.agentsFilesList(agentId);
         
-        // El rpc devuelve directo el resultado. Trataremos de extraerlo.
-        let rawOutput = "";
+        // Filter only markdown files
+        const mdFiles = fileNames.filter((name: string) => name.endsWith('.md'));
         
-        if (res && res.output) {
-          rawOutput = res.output;
-        } else if (res && typeof res === "string") {
-          rawOutput = res;
-        } else if (res && res.result && res.result.output) {
-          rawOutput = res.result.output;
-        } else if (res && res.data) {
-          rawOutput = res.data;
+        if (mdFiles.length === 0) {
+           if (mounted) {
+             setFiles([{ name: "Info.md", content: "No se encontraron archivos Markdown en el workspace de este agente."}]);
+             setActiveFileName("Info.md");
+             setIsLoading(false);
+           }
+           return;
         }
 
-        if (!rawOutput) {
-           throw new Error("No se obtuvo respuesta del adaptador WS o el formato es desconocido.");
-        }
-
-        const blocks = rawOutput.split("---FILE_SPLIT---\n").filter((b: string) => b.trim() !== "");
         const loadedFiles: WikiFile[] = [];
         
-        for (const block of blocks) {
-          const lines = block.split("\n");
-          if (lines.length > 0) {
-            const fileName = lines[0].trim();
-            const fileContent = lines.slice(1).join("\n").trim();
-            if (fileName && fileName.endsWith(".md")) {
-               loadedFiles.push({ name: fileName, content: fileContent || "*Vacío*" });
-            }
+        // Fetch content for each md file
+        for (const fileName of mdFiles) {
+          try {
+            const content = await adapter.agentsFilesGet(agentId, fileName);
+            loadedFiles.push({ name: fileName, content: content || "*Vacío*" });
+          } catch (e) {
+            console.warn(`Failed to read ${fileName}`, e);
           }
         }
         
         if (mounted) {
-          if (loadedFiles.length === 0) {
-            loadedFiles.push({ name: "Info.md", content: "No se encontraron archivos Markdown en la raíz del workspace."});
-          }
-          loadedFiles.sort((a, b) => a.name.localeCompare(b.name));
+          loadedFiles.sort((a, b) => {
+            // Prioritize standard files
+            if (a.name === "index.md" || a.name === "IDENTITY.md") return -1;
+            if (b.name === "index.md" || b.name === "IDENTITY.md") return 1;
+            return a.name.localeCompare(b.name);
+          });
           setFiles(loadedFiles);
-          setActiveFileName(loadedFiles[0].name);
+          setActiveFileName(loadedFiles[0]?.name || null);
         }
       } catch (err: any) {
         console.error("Wiki load error:", err);
         if (mounted) {
-          // Si el WebSocket falla (posiblemente porque la tool RPC no está estructurada así),
-          // devolvemos un Mock para que el usuario al menos vea la interfaz en vez de un error catastrófico.
-          const mockFiles = ["index.md", "SOUL.md", "AGENTS.md", "IDENTITY.md", "MEMORY.md", "log.md"];
-          const fallbackFiles = mockFiles.map(f => ({ name: f, content: `# ${f}\n\nConexión a disco duro fallida: \`${err.message}\`.\n\nMostrando datos en caché (Mock Mode) para visualizar la interfaz. El protocolo WebSocket de OpenClaw requiere que implementemos un método en \`ws-adapter.ts\` oficial para leer archivos.` }));
-          
           setError(err.message || "Error desconocido al intentar leer los archivos del agente.");
-          setFiles(fallbackFiles);
-          setActiveFileName(fallbackFiles[0].name);
+          setFiles([{ name: "Error.md", content: `# Error de Conexión\n\nNo se pudo leer el disco duro del agente \`${agentId}\`.\n\n**Detalle:** ${err.message}` }]);
+          setActiveFileName("Error.md");
         }
       } finally {
         if (mounted) setIsLoading(false);
