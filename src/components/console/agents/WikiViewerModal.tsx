@@ -19,7 +19,7 @@ export function WikiViewerModal({ agentId, agentName, isOpen, onClose }: WikiVie
   const [files, setFiles] = useState<WikiFile[]>([]);
   const [activeFileName, setActiveFileName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
