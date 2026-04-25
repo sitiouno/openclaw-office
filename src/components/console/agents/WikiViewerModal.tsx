@@ -14,24 +14,46 @@ interface WikiViewerModalProps {
 export function WikiViewerModal({ agentId, agentName, isOpen, onClose }: WikiViewerModalProps) {
   const [content, setContent] = useState<string>("Loading knowledge base...");
   const [viewMode, setViewMode] = useState<"text" | "graph">("text");
-  
-  // Dummy graph data structure simulating linked MD files
-  const graphData = {
-    nodes: [
-      { id: "index.md", name: "Index", val: 20 },
-      { id: "skills.md", name: "Skills", val: 10 },
-      { id: "memory.md", name: "Memory", val: 15 },
-    ],
-    links: [
-      { source: "index.md", target: "skills.md" },
-      { source: "index.md", target: "memory.md" }
-    ]
-  };
+  const [graphData, setGraphData] = useState({ nodes: [], links: [] });
 
   useEffect(() => {
     if (isOpen) {
-      // In a real implementation this fetches via /api/v1/agents/{agentId}/files/index.md
-      setContent(`# Knowledge Base: ${agentName}\n\nWelcome to the internal wiki. Nodes are currently rendering dummy data until the file sync API is fully connected.\n\n## Core Principles\n- Information is persistent.\n- Edits append to log.md.\n`);
+      // In a real ACP environment we'd use the backend to parse the real markdown.
+      // Here we make an exec call via the gateway to read the directory structure and simulate parsing.
+      const fetchRealGraph = async () => {
+        try {
+          // Leer los archivos markdown del workspace del agente via gateway exec tool
+          const response = await fetch(`/api/v1/agents/${agentId}/tools/exec`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              command: `find /home/magnus-vaos/openclaw-workspaces/${agentId} -maxdepth 1 -name "*.md" -exec basename {} \\;` 
+            })
+          });
+          
+          if (!response.ok) throw new Error("Failed to fetch markdown files");
+          
+          const result = await response.json();
+          const files = result.output ? result.output.trim().split("\n") : [];
+          
+          const nodes = files.map((file: string) => ({ id: file, name: file, val: 10 }));
+          
+          // Crear un nodo central y conectar todos los archivos a él para simular un grafo base
+          if (files.length > 0 && !nodes.find((n: any) => n.id === "workspace_root")) {
+             nodes.push({ id: "workspace_root", name: `${agentName} Root`, val: 20 });
+          }
+          
+          const links = files.map((file: string) => ({ source: "workspace_root", target: file }));
+
+          setGraphData({ nodes, links } as any);
+          setContent(`# Knowledge Base: ${agentName}\n\nEste visor está conectado al sistema de archivos local. Actualmente hay ${files.length} archivos Markdown en la raíz del workspace de este agente.\n\n### Archivos Encontrados:\n${files.map((f: string) => `- ${f}`).join('\n')}`);
+        } catch (error) {
+          console.error(error);
+          setContent(`Error cargando la base de conocimiento real de ${agentName}.`);
+        }
+      };
+
+      fetchRealGraph();
     }
   }, [isOpen, agentName, agentId]);
 
