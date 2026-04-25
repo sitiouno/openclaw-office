@@ -12,17 +12,18 @@ export function LocalSkillsTab({ agent }: LocalSkillsTabProps) {
   const handleOpenObsidian = async () => {
     setOpening(true);
     try {
-      // Execute the local open command via OpenClaw gateway
+      // Usar URI explícita compatible con Obsidian URI router 
+      // El nombre del vault en Obsidian suele coincidir con el nombre de la carpeta final
+      const vaultName = encodeURIComponent(agent.id);
+      
       await fetch(`/api/v1/agents/${agent.id}/tools/exec`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
-          command: `xdg-open "obsidian://open?path=/home/magnus-vaos/openclaw-workspaces/${agent.id}"`,
+          command: `xdg-open "obsidian://open?vault=${vaultName}" || xdg-open "obsidian://open?path=/home/magnus-vaos/openclaw-workspaces/${agent.id}"`,
           background: true 
         })
       });
-      // Also fallback trigger the URI just in case they are browsing from the local host
-      window.location.href = `obsidian://open?path=/home/magnus-vaos/openclaw-workspaces/${agent.id}`;
     } catch (e) {
       console.error(e);
     } finally {
