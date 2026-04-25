@@ -8,7 +8,7 @@ import { OverviewTab } from "./tabs/OverviewTab";
 import { SkillsTab } from "./tabs/SkillsTab";
 import { ToolsTab } from "./tabs/ToolsTab";
 
-const TABS: AgentTab[] = ["overview", "files", "tools", "skills", "channels", "cronJobs"];
+const TABS: AgentTab[] = ["overview", "files", "tools", "skills", "local_skills", "channels", "cronJobs"];
 
 interface AgentDetailTabsProps {
   agent: AgentSummary;
@@ -46,6 +46,7 @@ export function AgentDetailTabs({ agent }: AgentDetailTabsProps) {
         {activeTab === "skills" && <SkillsTab key={agent.id} agent={agent} />}
         {activeTab === "channels" && <ChannelsTab key={agent.id} agent={agent} />}
         {activeTab === "cronJobs" && <CronJobsTab key={agent.id} agent={agent} />}
+        {activeTab === "local_skills" && <LocalSkillsTab key={agent.id} agent={agent} />}
       </div>
     </div>
   );
