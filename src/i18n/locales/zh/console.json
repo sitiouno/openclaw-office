@@ -688,7 +688,7 @@
     },
     "notConfigured": {
       "title": "Registry API 未配置",
-      "body": "请设置 VITE_REGISTRY_API_URL 与 VITE_REGISTRY_API_TOKEN，或在运行时注入 window.__OPENCLAW_CONFIG__.registryApiUrl/Token。"
+      "body": "请设置 VITE_REGISTRY_API_URL，或在运行时注入 window.__OPENCLAW_CONFIG__.registryApiUrl。默认指向 Tailscale 上的 HQ 边车（http://openclaw-hq:8781），信任边界即 VPN — 无需 Bearer 令牌。"
     },
     "pairing": {
       "title": "待审批的配对请求",

@@ -690,7 +690,7 @@
     },
     "notConfigured": {
       "title": "Registry API not configured",
-      "body": "Set VITE_REGISTRY_API_URL and VITE_REGISTRY_API_TOKEN, or inject window.__OPENCLAW_CONFIG__.registryApiUrl/Token at runtime."
+      "body": "Set VITE_REGISTRY_API_URL or inject window.__OPENCLAW_CONFIG__.registryApiUrl at runtime. The default targets the HQ sidecar over Tailscale (http://openclaw-hq:8781) and trusts the VPN as the perimeter — no bearer token is required."
     },
     "pairing": {
       "title": "Pending pairing requests",
