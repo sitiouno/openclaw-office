@@ -9,6 +9,7 @@ import { CronPage } from "@/components/pages/CronPage";
 import { DashboardPage } from "@/components/pages/DashboardPage";
 import { ChatPage } from "@/components/pages/ChatPage";
 import { SettingsPage } from "@/components/pages/SettingsPage";
+import { SetupGcpPage } from "@/components/pages/SetupGcpPage";
 import { SkillsPage } from "@/components/pages/SkillsPage";
 import { ChatWorkspaceBootstrap } from "@/components/chat/ChatWorkspaceBootstrap";
 import type { PageId } from "@/gateway/types";
@@ -39,6 +40,7 @@ const PAGE_MAP: Record<string, PageId> = {
   "/channels": "channels",
   "/skills": "skills",
   "/cron": "cron",
+  "/setup-gcp": "setupGcp",
   "/settings": "settings",
 };
 
@@ -111,6 +113,7 @@ export function App() {
           <Route path="/channels" element={<ChannelsPage />} />
           <Route path="/skills" element={<SkillsPage />} />
           <Route path="/cron" element={<CronPage />} />
+          <Route path="/setup-gcp" element={<SetupGcpPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
