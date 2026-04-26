@@ -1,20 +1,24 @@
 /**
- * Registry API client for the SitioUno fleet-registry-api Cloud Run service.
+ * Registry API client for the local HQ sidecar.
  *
- * This is a separate, admin-scoped REST channel (NOT routed via the gateway
- * WebSocket adapter) used by the "Setup GCP" console page to:
+ * The "Setup GCP" console page uses this client to:
  *   - approve/reject pending pairing requests from new branch nodes (Tailscale)
  *   - manage GCP Secret Manager-backed notification channels (Telegram first)
+ *   - broadcast notifications via the HQ notify endpoint
  *
- * Configuration precedence:
- *   1. Runtime injection: window.__OPENCLAW_CONFIG__.registryApiUrl/Token
+ * Trust model:
+ *   The HQ sidecar listens on the Tailscale tailnet (default
+ *   `http://openclaw-hq:8781`). The trust boundary is the VPN itself: the
+ *   sidecar validates the source identity server-side via `tailscale whois`.
+ *   This client therefore intentionally has NO bearer token, NO Authorization
+ *   header, and NO admin-credential plumbing. Putting a long-lived token in
+ *   the browser bundle was a regression — the network is the perimeter.
+ *
+ * Configuration precedence (URL only):
+ *   1. Runtime injection: window.__OPENCLAW_CONFIG__.registryApiUrl
  *      (mirrors the gateway pattern used in src/App.tsx)
- *   2. Build-time env: VITE_REGISTRY_API_URL / VITE_REGISTRY_API_TOKEN
- *
- * The admin token is treated as a server-side credential. We deliberately:
- *   - never persist it to localStorage / sessionStorage
- *   - never log the token value
- *   - never echo secret values from POST bodies back into UI state once submitted
+ *   2. Build-time env: VITE_REGISTRY_API_URL
+ *   3. Default: http://openclaw-hq:8781 (Tailscale hostname for HQ)
  */
 
 // ---------- Types ----------
@@ -101,11 +105,27 @@ export interface ChannelTestResult {
   detail?: Record<string, unknown> | string | null;
 }
 
+export interface NotifyBroadcastBody {
+  scope: string;
+  text: string;
+}
+
+export interface NotifyBroadcastResult {
+  ok: boolean;
+  delivered?: number;
+  detail?: Record<string, unknown> | string | null;
+}
+
 // ---------- Config resolution ----------
+
+/**
+ * Default base URL for the HQ sidecar on Tailscale. The sidecar listens on
+ * the tailnet and uses `tailscale whois` for source identity — no bearer.
+ */
+export const DEFAULT_REGISTRY_API_URL = "http://openclaw-hq:8781";
 
 interface RuntimeConfig {
   registryApiUrl?: string;
-  registryApiToken?: string;
 }
 
 function readRuntimeConfig(): RuntimeConfig {
@@ -118,25 +138,17 @@ function readRuntimeConfig(): RuntimeConfig {
 
 export interface RegistryApiResolvedConfig {
   baseUrl: string;
-  token: string;
   configured: boolean;
 }
 
 export function resolveRegistryApiConfig(): RegistryApiResolvedConfig {
   const runtime = readRuntimeConfig();
-  const baseUrl = (
-    runtime.registryApiUrl ||
-    (import.meta.env as unknown as Record<string, string | undefined>).VITE_REGISTRY_API_URL ||
-    ""
-  )
-    .trim()
-    .replace(/\/+$/u, "");
-  const token = (
-    runtime.registryApiToken ||
-    (import.meta.env as unknown as Record<string, string | undefined>).VITE_REGISTRY_API_TOKEN ||
-    ""
+  const fromRuntime = (runtime.registryApiUrl ?? "").trim();
+  const fromEnv = (
+    (import.meta.env as unknown as Record<string, string | undefined>).VITE_REGISTRY_API_URL ?? ""
   ).trim();
-  return { baseUrl, token, configured: Boolean(baseUrl && token) };
+  const baseUrl = (fromRuntime || fromEnv || DEFAULT_REGISTRY_API_URL).replace(/\/+$/u, "");
+  return { baseUrl, configured: Boolean(baseUrl) };
 }
 
 // ---------- Errors ----------
@@ -155,8 +167,9 @@ export class RegistryApiError extends Error {
 export class RegistryApiNotConfiguredError extends Error {
   constructor() {
     super(
-      "Registry API is not configured. Set VITE_REGISTRY_API_URL + VITE_REGISTRY_API_TOKEN, " +
-        "or inject window.__OPENCLAW_CONFIG__.registryApiUrl/Token at runtime.",
+      "Registry API base URL is empty. Set VITE_REGISTRY_API_URL or inject " +
+        "window.__OPENCLAW_CONFIG__.registryApiUrl at runtime (default is " +
+        `${DEFAULT_REGISTRY_API_URL}).`,
     );
     this.name = "RegistryApiNotConfiguredError";
   }
@@ -171,12 +184,12 @@ interface RequestOptions {
 }
 
 async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
-  const { baseUrl, token, configured } = resolveRegistryApiConfig();
+  const { baseUrl, configured } = resolveRegistryApiConfig();
   if (!configured) throw new RegistryApiNotConfiguredError();
 
   const url = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+  // Trust boundary is the VPN — no Authorization header by design.
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
     Accept: "application/json",
   };
   let body: BodyInit | undefined;
@@ -246,9 +259,15 @@ export const channels = {
     request<ChannelTestResult>(`/v1/channels/${id}/test`, { method: "POST", body }),
 };
 
+export const notify = {
+  broadcast: (body: NotifyBroadcastBody) =>
+    request<NotifyBroadcastResult>("/v1/notify", { method: "POST", body }),
+};
+
 export const registryApiClient = {
   pairing,
   channels,
+  notify,
   resolveConfig: resolveRegistryApiConfig,
 };
 

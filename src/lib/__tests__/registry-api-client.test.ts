@@ -1,54 +1,51 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   channels,
+  DEFAULT_REGISTRY_API_URL,
+  notify,
   pairing,
-  RegistryApiNotConfiguredError,
   resolveRegistryApiConfig,
 } from "@/lib/registry-api-client";
 
 const originalFetch = global.fetch;
 
-function setRuntime(url: string | undefined, token: string | undefined): void {
+function setRuntimeUrl(url: string | undefined): void {
   const win = window as unknown as Record<string, unknown>;
-  if (!url && !token) {
+  if (url === undefined) {
     delete win.__OPENCLAW_CONFIG__;
     return;
   }
-  win.__OPENCLAW_CONFIG__ = { registryApiUrl: url, registryApiToken: token };
+  win.__OPENCLAW_CONFIG__ = { registryApiUrl: url };
 }
 
 describe("registry-api-client", () => {
   beforeEach(() => {
-    setRuntime(undefined, undefined);
+    setRuntimeUrl(undefined);
   });
 
   afterEach(() => {
-    setRuntime(undefined, undefined);
+    setRuntimeUrl(undefined);
     global.fetch = originalFetch;
     vi.restoreAllMocks();
   });
 
-  it("resolves config from runtime injection and trims trailing slash", () => {
-    setRuntime("https://fleet-registry-api.example.run.app/", "abc123");
+  it("falls back to the Tailscale HQ default when nothing is configured", () => {
+    setRuntimeUrl(undefined);
     const cfg = resolveRegistryApiConfig();
-    expect(cfg.baseUrl).toBe("https://fleet-registry-api.example.run.app");
-    expect(cfg.token).toBe("abc123");
+    expect(cfg.baseUrl).toBe(DEFAULT_REGISTRY_API_URL);
+    expect(cfg.baseUrl).toBe("http://openclaw-hq:8781");
     expect(cfg.configured).toBe(true);
   });
 
-  it("reports not-configured when url or token is missing", () => {
-    setRuntime("", "");
+  it("resolves config from runtime injection and trims trailing slash", () => {
+    setRuntimeUrl("http://openclaw-hq:8781/");
     const cfg = resolveRegistryApiConfig();
-    expect(cfg.configured).toBe(false);
+    expect(cfg.baseUrl).toBe("http://openclaw-hq:8781");
+    expect(cfg.configured).toBe(true);
   });
 
-  it("throws RegistryApiNotConfiguredError when calling without config", async () => {
-    setRuntime(undefined, undefined);
-    await expect(pairing.list("pending")).rejects.toBeInstanceOf(RegistryApiNotConfiguredError);
-  });
-
-  it("issues GET with bearer token and parses JSON for pairing.list", async () => {
-    setRuntime("https://api.example.com", "tok");
+  it("issues GET WITHOUT an Authorization header for pairing.list", async () => {
+    setRuntimeUrl("http://openclaw-hq:8781");
     const fetchMock = vi.fn(
       async () =>
         new Response(JSON.stringify([{ id: 1, branch_id: "miami" }]), {
@@ -62,13 +59,16 @@ describe("registry-api-client", () => {
     expect(items).toEqual([{ id: 1, branch_id: "miami" }]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [calledUrl, init] = fetchMock.mock.calls[0]!;
-    expect(calledUrl).toBe("https://api.example.com/v1/pairing/requests?status_filter=pending");
+    expect(calledUrl).toBe("http://openclaw-hq:8781/v1/pairing/requests?status_filter=pending");
     expect((init as RequestInit).method).toBe("GET");
-    expect((init as RequestInit).headers).toMatchObject({ Authorization: "Bearer tok" });
+    const headers = (init as RequestInit).headers as Record<string, string>;
+    expect(headers).toMatchObject({ Accept: "application/json" });
+    // VPN is the trust boundary — no bearer token in browser bundle.
+    expect(Object.keys(headers).map((k) => k.toLowerCase())).not.toContain("authorization");
   });
 
-  it("posts JSON body for channels.create", async () => {
-    setRuntime("https://api.example.com", "tok");
+  it("posts JSON body for channels.create without an Authorization header", async () => {
+    setRuntimeUrl("http://openclaw-hq:8781");
     const fetchMock = vi.fn(
       async () =>
         new Response(JSON.stringify({ id: 7, kind: "telegram", name: "Admin Bot" }), {
@@ -94,10 +94,34 @@ describe("registry-api-client", () => {
       config: { chat_id: "-1001" },
       scope: "admin",
     });
+    const headers = (init as RequestInit).headers as Record<string, string>;
+    expect(Object.keys(headers).map((k) => k.toLowerCase())).not.toContain("authorization");
+  });
+
+  it("posts to /v1/notify for notify.broadcast", async () => {
+    setRuntimeUrl("http://openclaw-hq:8781");
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ ok: true, delivered: 3 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await notify.broadcast({ scope: "admin", text: "hello" });
+    expect(result).toEqual({ ok: true, delivered: 3 });
+    const [calledUrl, init] = fetchMock.mock.calls[0]!;
+    expect(calledUrl).toBe("http://openclaw-hq:8781/v1/notify");
+    expect((init as RequestInit).method).toBe("POST");
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body).toEqual({ scope: "admin", text: "hello" });
+    const headers = (init as RequestInit).headers as Record<string, string>;
+    expect(Object.keys(headers).map((k) => k.toLowerCase())).not.toContain("authorization");
   });
 
   it("rejects with RegistryApiError on non-2xx with detail", async () => {
-    setRuntime("https://api.example.com", "tok");
+    setRuntimeUrl("http://openclaw-hq:8781");
     const fetchMock = vi.fn(
       async () =>
         new Response(JSON.stringify({ detail: "nope" }), {
