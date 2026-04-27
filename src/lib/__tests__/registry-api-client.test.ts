@@ -138,3 +138,35 @@ describe("registry-api-client", () => {
     });
   });
 });
+
+describe("envelope extraction (sidecar shape)", () => {
+  beforeEach(() => {
+    vi.stubEnv("VITE_REGISTRY_API_URL", "http://openclaw-hq:8781");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("pairing.list extracts requests[] from {requests: [...]} envelope", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ requests: [{ id: 2, branch_id: "miami", status: "pending" }] }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    )));
+    const { pairing: pairingApi } = await import("../registry-api-client");
+    const items = await pairingApi.list("pending");
+    expect(items).toHaveLength(1);
+    expect(items[0].id).toBe(2);
+  });
+
+  it("channels.list extracts channels[] from {channels: [...]} envelope", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ channels: [{ id: 1, kind: "telegram", name: "Bot" }] }),
+      { status: 200, headers: { "content-type": "application/json" } }
+    )));
+    const { channels: channelsApi } = await import("../registry-api-client");
+    const items = await channelsApi.list();
+    expect(items).toHaveLength(1);
+    expect(items[0].kind).toBe("telegram");
+  });
+});
