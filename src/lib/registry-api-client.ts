@@ -235,11 +235,12 @@ function ensureArray<T>(value: unknown): T[] {
 export const pairing = {
   list: async (statusFilter: PairingStatus | "all" = "pending") => {
     const qs = statusFilter === "all" ? "" : `?status_filter=${encodeURIComponent(statusFilter)}`;
-    // Defend against unexpected payload shapes: a malformed/empty body or a
-    // wrapped envelope would otherwise let `.map()` throw at render time and
-    // crash the React tree. Force an array on the way out.
-    const raw = await request<unknown>(`/v1/pairing/requests${qs}`);
-    return ensureArray<PairingRequest>(raw);
+    // Sidecar returns `{requests: [...]}`. Tolerate plain-array fallback too.
+    const raw = await request<{ requests?: PairingRequest[] } | PairingRequest[]>(
+      `/v1/pairing/requests${qs}`
+    );
+    if (Array.isArray(raw)) return raw;
+    return ensureArray<PairingRequest>(raw?.requests);
   },
   get: (id: number) => request<PairingRequest>(`/v1/pairing/requests/${id}`),
   approve: (id: number, body: PairingApproveBody) =>
@@ -255,8 +256,12 @@ export const pairing = {
 
 export const channels = {
   list: async () => {
-    const raw = await request<unknown>("/v1/channels");
-    return ensureArray<NotificationChannel>(raw);
+    // Sidecar returns `{channels: [...]}`. Tolerate plain-array fallback too.
+    const raw = await request<{ channels?: NotificationChannel[] } | NotificationChannel[]>(
+      "/v1/channels"
+    );
+    if (Array.isArray(raw)) return raw;
+    return ensureArray<NotificationChannel>(raw?.channels);
   },
   get: (id: number) => request<NotificationChannel>(`/v1/channels/${id}`),
   create: (body: CreateChannelBody) =>
