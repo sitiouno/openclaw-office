@@ -10,7 +10,9 @@ import { useSetupGcpStore } from "@/store/console-stores/setupgcp-store";
 
 export function ChannelsAdminView() {
   const { t } = useTranslation("console");
-  const items = useSetupGcpStore((s) => s.channelItems);
+  const rawItems = useSetupGcpStore((s) => s.channelItems);
+  // Defensive coercion — see PairingRequestsView for rationale.
+  const items = Array.isArray(rawItems) ? rawItems : [];
   const loading = useSetupGcpStore((s) => s.channelsLoading);
   const error = useSetupGcpStore((s) => s.channelsError);
   const inFlight = useSetupGcpStore((s) => s.channelActionInFlight);

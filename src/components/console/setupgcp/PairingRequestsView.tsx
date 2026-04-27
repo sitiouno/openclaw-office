@@ -29,7 +29,11 @@ interface PairingRequestsViewProps {
 
 export function PairingRequestsView({ defaultDecidedBy }: PairingRequestsViewProps) {
   const { t } = useTranslation("console");
-  const items = useSetupGcpStore((s) => s.pairingItems);
+  const rawItems = useSetupGcpStore((s) => s.pairingItems);
+  // Defensive coercion: if upstream ever passed something other than an array
+  // (malformed API payload, partial state hydration), `.map()` would otherwise
+  // throw inside render and crash the whole React tree.
+  const items = Array.isArray(rawItems) ? rawItems : [];
   const loading = useSetupGcpStore((s) => s.pairingLoading);
   const error = useSetupGcpStore((s) => s.pairingError);
   const filter = useSetupGcpStore((s) => s.pairingFilter);
@@ -259,19 +263,24 @@ function StatusPill({ status }: { status: PairingStatus }) {
     smoke_passed: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200",
     smoke_failed: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200",
   };
+  const tone =
+    color[status] ?? "bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200";
+  const label = status ? t(`setupGcp.pairing.status.${status}`) : "—";
   return (
-    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${color[status]}`}>
-      {t(`setupGcp.pairing.status.${status}`)}
-    </span>
+    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${tone}`}>{label}</span>
   );
 }
 
 function DetailGrid({ item }: { item: PairingRequest }) {
   const { t } = useTranslation("console");
+  const allowedAgents = Array.isArray(item.allowed_agents) ? item.allowed_agents : [];
   const rows: Array<[string, string]> = [
-    [t("setupGcp.pairing.fields.delegateUrl"), item.delegate_url],
-    [t("setupGcp.pairing.fields.allowedAgents"), item.allowed_agents.join(", ") || "—"],
-    [t("setupGcp.pairing.fields.tokenFingerprint"), item.delegation_token_fingerprint],
+    [t("setupGcp.pairing.fields.delegateUrl"), item.delegate_url ?? "—"],
+    [t("setupGcp.pairing.fields.allowedAgents"), allowedAgents.join(", ") || "—"],
+    [
+      t("setupGcp.pairing.fields.tokenFingerprint"),
+      item.delegation_token_fingerprint ?? "—",
+    ],
     [t("setupGcp.pairing.fields.decidedBy"), item.decided_by ?? "—"],
     [
       t("setupGcp.pairing.fields.decidedAt"),

@@ -12,6 +12,7 @@ import { SettingsPage } from "@/components/pages/SettingsPage";
 import { SetupGcpPage } from "@/components/pages/SetupGcpPage";
 import { SkillsPage } from "@/components/pages/SkillsPage";
 import { ChatWorkspaceBootstrap } from "@/components/chat/ChatWorkspaceBootstrap";
+import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import type { PageId } from "@/gateway/types";
 import { useGatewayConnection } from "@/hooks/useGatewayConnection";
 import { useResponsive } from "@/hooks/useResponsive";
@@ -113,7 +114,14 @@ export function App() {
           <Route path="/channels" element={<ChannelsPage />} />
           <Route path="/skills" element={<SkillsPage />} />
           <Route path="/cron" element={<CronPage />} />
-          <Route path="/setup-gcp" element={<SetupGcpPage />} />
+          <Route
+            path="/setup-gcp"
+            element={
+              <ErrorBoundary title="Setup GCP">
+                <SetupGcpPage />
+              </ErrorBoundary>
+            }
+          />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
