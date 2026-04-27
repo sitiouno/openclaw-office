@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SetupGcpPage } from "./SetupGcpPage";
 
@@ -46,5 +46,50 @@ describe("SetupGcpPage", () => {
     });
     // Default base URL is http://openclaw-hq:8781 (Tailscale hostname for HQ).
     expect(screen.getByText(/openclaw-hq:8781/)).toBeInTheDocument();
+  });
+
+  it("does not white-screen when the sidecar fetch rejects with a network error", async () => {
+    // Simulate the off-tailnet case the user reported: DNS for openclaw-hq
+    // fails, so fetch() rejects with a TypeError. Before the fix, this took
+    // out the entire React tree and the browser tab went blank.
+    global.fetch = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    }) as unknown as typeof fetch;
+
+    await act(async () => {
+      render(<SetupGcpPage />);
+    });
+
+    // Page chrome stays mounted.
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+    // And the failure surfaces as a friendly retry-able error panel, not a crash.
+    await waitFor(() => {
+      expect(screen.getByText(/cannot reach sidecar/i)).toBeInTheDocument();
+    });
+  });
+
+  it("does not crash when the sidecar returns a non-array payload", async () => {
+    // Some upstreams have been observed to return `{detail: "..."}` envelopes
+    // on partial outages. items.map(...) used to throw and unmount the tree.
+    global.fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ detail: "service unavailable" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    ) as unknown as typeof fetch;
+
+    await act(async () => {
+      render(<SetupGcpPage />);
+    });
+
+    // Should render the empty state (coerced to []) rather than throwing.
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+    await waitFor(() => {
+      // EmptyState title for pairing tab — match either default zh or en text.
+      const empty = screen.queryByText(/No requests in this state/i)
+        ?? screen.queryByText(/当前没有该状态的请求/);
+      expect(empty).not.toBeNull();
+    });
   });
 });

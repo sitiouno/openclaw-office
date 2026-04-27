@@ -228,10 +228,18 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
 
 // ---------- Resource APIs ----------
 
+function ensureArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 export const pairing = {
-  list: (statusFilter: PairingStatus | "all" = "pending") => {
+  list: async (statusFilter: PairingStatus | "all" = "pending") => {
     const qs = statusFilter === "all" ? "" : `?status_filter=${encodeURIComponent(statusFilter)}`;
-    return request<PairingRequest[]>(`/v1/pairing/requests${qs}`);
+    // Defend against unexpected payload shapes: a malformed/empty body or a
+    // wrapped envelope would otherwise let `.map()` throw at render time and
+    // crash the React tree. Force an array on the way out.
+    const raw = await request<unknown>(`/v1/pairing/requests${qs}`);
+    return ensureArray<PairingRequest>(raw);
   },
   get: (id: number) => request<PairingRequest>(`/v1/pairing/requests/${id}`),
   approve: (id: number, body: PairingApproveBody) =>
@@ -246,7 +254,10 @@ export const pairing = {
 };
 
 export const channels = {
-  list: () => request<NotificationChannel[]>("/v1/channels"),
+  list: async () => {
+    const raw = await request<unknown>("/v1/channels");
+    return ensureArray<NotificationChannel>(raw);
+  },
   get: (id: number) => request<NotificationChannel>(`/v1/channels/${id}`),
   create: (body: CreateChannelBody) =>
     request<NotificationChannel>("/v1/channels", { method: "POST", body }),

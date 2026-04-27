@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChannelsAdminView } from "@/components/console/setupgcp/ChannelsAdminView";
 import { PairingRequestsView } from "@/components/console/setupgcp/PairingRequestsView";
 import { SecretManagerNotice } from "@/components/console/setupgcp/SecretManagerNotice";
+import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useSetupGcpStore } from "@/store/console-stores/setupgcp-store";
 
 type Tab = "pairing" | "channels";
@@ -45,11 +46,19 @@ export function SetupGcpPage() {
         </TabButton>
       </div>
 
-      {tab === "pairing" ? (
-        <PairingRequestsView defaultDecidedBy={DEFAULT_OPERATOR_ID} />
-      ) : (
-        <ChannelsAdminView />
-      )}
+      {/*
+        Wrap the active tab in a local error boundary so an unexpected throw
+        inside one of the tab views (e.g. a malformed sidecar payload) renders
+        a friendly panel instead of unmounting the entire React tree and
+        leaving the browser tab blank.
+      */}
+      <ErrorBoundary title={t("setupGcp.title")}>
+        {tab === "pairing" ? (
+          <PairingRequestsView defaultDecidedBy={DEFAULT_OPERATOR_ID} />
+        ) : (
+          <ChannelsAdminView />
+        )}
+      </ErrorBoundary>
     </div>
   );
 }

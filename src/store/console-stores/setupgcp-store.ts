@@ -15,7 +15,27 @@ import {
 function toMessage(err: unknown): string {
   if (err instanceof RegistryApiNotConfiguredError) return err.message;
   if (err instanceof Error) return err.message;
-  return String(err);
+  try {
+    return String(err);
+  } catch {
+    return "Unknown error";
+  }
+}
+
+function isLikelyNetworkError(err: unknown): boolean {
+  // Browsers throw a TypeError ("Failed to fetch", "NetworkError when…", etc.)
+  // when DNS fails, the host is unreachable, or mixed content is blocked.
+  if (err instanceof TypeError) return true;
+  if (err instanceof Error && /network|fetch|failed to fetch/i.test(err.message)) return true;
+  return false;
+}
+
+function describeError(err: unknown, baseUrl: string): string {
+  const base = toMessage(err);
+  if (isLikelyNetworkError(err)) {
+    return `${base} — cannot reach sidecar at ${baseUrl}. If you are not on the Tailscale tailnet, this page will be unavailable.`;
+  }
+  return base;
 }
 
 interface SetupGcpState {
@@ -52,7 +72,17 @@ interface SetupGcpState {
   testChannel: (id: number, message?: string) => Promise<ChannelTestResult | null>;
 }
 
-const initialConfig = resolveRegistryApiConfig();
+// Resolve config defensively at module load: any throw here would otherwise
+// kill the whole bundle the moment the page is imported.
+function safeInitialConfig(): { configured: boolean; baseUrl: string } {
+  try {
+    return resolveRegistryApiConfig();
+  } catch {
+    return { configured: false, baseUrl: "" };
+  }
+}
+
+const initialConfig = safeInitialConfig();
 
 export const useSetupGcpStore = create<SetupGcpState>((set, get) => ({
   pairingItems: [],
@@ -71,8 +101,12 @@ export const useSetupGcpStore = create<SetupGcpState>((set, get) => ({
   baseUrl: initialConfig.baseUrl,
 
   refreshConfig: () => {
-    const cfg = resolveRegistryApiConfig();
-    set({ configured: cfg.configured, baseUrl: cfg.baseUrl });
+    try {
+      const cfg = resolveRegistryApiConfig();
+      set({ configured: cfg.configured, baseUrl: cfg.baseUrl });
+    } catch {
+      set({ configured: false, baseUrl: "" });
+    }
   },
 
   fetchPairing: async (filter) => {
@@ -80,9 +114,18 @@ export const useSetupGcpStore = create<SetupGcpState>((set, get) => ({
     set({ pairingLoading: true, pairingError: null, pairingFilter: useFilter });
     try {
       const items = await pairingApi.list(useFilter);
-      set({ pairingItems: items, pairingLoading: false });
+      set({
+        pairingItems: Array.isArray(items) ? items : [],
+        pairingLoading: false,
+      });
     } catch (err) {
-      set({ pairingError: toMessage(err), pairingLoading: false });
+      // Never let this throw out — surface as error state so the page can
+      // render a friendly panel instead of unmounting the React tree.
+      set({
+        pairingError: describeError(err, get().baseUrl),
+        pairingLoading: false,
+        pairingItems: [],
+      });
     }
   },
 
@@ -127,9 +170,16 @@ export const useSetupGcpStore = create<SetupGcpState>((set, get) => ({
     set({ channelsLoading: true, channelsError: null });
     try {
       const items = await channelsApi.list();
-      set({ channelItems: items, channelsLoading: false });
+      set({
+        channelItems: Array.isArray(items) ? items : [],
+        channelsLoading: false,
+      });
     } catch (err) {
-      set({ channelsError: toMessage(err), channelsLoading: false });
+      set({
+        channelsError: describeError(err, get().baseUrl),
+        channelsLoading: false,
+        channelItems: [],
+      });
     }
   },
 
