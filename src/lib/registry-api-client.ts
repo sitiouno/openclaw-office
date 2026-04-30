@@ -116,6 +116,51 @@ export interface NotifyBroadcastResult {
   detail?: Record<string, unknown> | string | null;
 }
 
+// ---------- OpenHands (LLM provider profiles) ----------
+
+export type OpenHandsProvider =
+  | "google"
+  | "anthropic"
+  | "openai"
+  | "deepseek"
+  | "minimax"
+  | "ollama";
+
+export interface OpenHandsProfile {
+  id: number;
+  provider: OpenHandsProvider;
+  model: string;
+  label: string;
+  is_default: boolean;
+  has_secret: boolean;
+  last_test_at: string | null;
+  last_test_result: Record<string, unknown> | string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateOpenHandsProfileBody {
+  provider: OpenHandsProvider;
+  model: string;
+  label: string;
+}
+
+export interface UpdateOpenHandsProfileBody {
+  provider?: OpenHandsProvider;
+  model?: string;
+  label?: string;
+}
+
+export interface OpenHandsTestBody {
+  prompt?: string;
+}
+
+export interface OpenHandsTestResult {
+  ok: boolean;
+  detail?: Record<string, unknown> | string | null;
+  latency_ms?: number;
+}
+
 // ---------- Config resolution ----------
 
 /**
@@ -280,10 +325,37 @@ export const notify = {
     request<NotifyBroadcastResult>("/v1/notify", { method: "POST", body }),
 };
 
+export const openhands = {
+  profiles: {
+    list: async () => {
+      // Sidecar returns `{profiles: [...]}`. Tolerate plain-array fallback too.
+      const raw = await request<{ profiles?: OpenHandsProfile[] } | OpenHandsProfile[]>(
+        "/v1/openhands/profiles",
+      );
+      if (Array.isArray(raw)) return raw;
+      return ensureArray<OpenHandsProfile>(raw?.profiles);
+    },
+    get: (id: number) => request<OpenHandsProfile>(`/v1/openhands/profiles/${id}`),
+    create: (body: CreateOpenHandsProfileBody) =>
+      request<OpenHandsProfile>("/v1/openhands/profiles", { method: "POST", body }),
+    update: (id: number, body: UpdateOpenHandsProfileBody) =>
+      request<OpenHandsProfile>(`/v1/openhands/profiles/${id}`, { method: "PATCH", body }),
+    delete: (id: number) =>
+      request<{ ok: boolean }>(`/v1/openhands/profiles/${id}`, { method: "DELETE" }),
+    setSecret: (id: number, body: SetSecretBody) =>
+      request<OpenHandsProfile>(`/v1/openhands/profiles/${id}/secret`, { method: "POST", body }),
+    activate: (id: number) =>
+      request<OpenHandsProfile>(`/v1/openhands/profiles/${id}/activate`, { method: "POST" }),
+    test: (id: number, body: OpenHandsTestBody = {}) =>
+      request<OpenHandsTestResult>(`/v1/openhands/profiles/${id}/test`, { method: "POST", body }),
+  },
+};
+
 export const registryApiClient = {
   pairing,
   channels,
   notify,
+  openhands,
   resolveConfig: resolveRegistryApiConfig,
 };
 

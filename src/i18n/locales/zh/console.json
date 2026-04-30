@@ -680,7 +680,8 @@
     "description": "审批新接入的分支节点，并管理由 GCP Secret Manager 托管的通知渠道（Telegram 等）。",
     "tabs": {
       "pairing": "配对请求",
-      "channels": "通知渠道"
+      "channels": "通知渠道",
+      "openhands": "OpenHands"
     },
     "secretsNotice": {
       "title": "凭据保存在 GCP Secret Manager",
@@ -775,6 +776,52 @@
       "setSecret": "设置凭据",
       "enable": "启用",
       "disable": "禁用"
+    },
+    "openhands": {
+      "title": "OpenHands LLM 配置",
+      "description": "Alekhine OpenHands 封装使用的 LLM 提供方配置。被设为默认的配置将驱动 fleet 中所有 OpenHands 运行。",
+      "createProfile": "新建配置",
+      "defaultBadge": "默认",
+      "secretSet": "已设置凭据",
+      "noSecret": "未设置凭据",
+      "lastTest": "上次测试",
+      "testOk": "LLM 往返测试成功。",
+      "testFailed": "测试失败：{{detail}}",
+      "banner": {
+        "title": "默认配置驱动 OpenHands",
+        "body": "被标记为默认的配置即 Alekhine OpenHands 封装实际使用的配置。API Key 保存在 GCP Secret Manager —— 永不写入浏览器或注册中心数据库。"
+      },
+      "empty": {
+        "title": "尚未配置任何 LLM 配置",
+        "description": "创建一个配置，将 LLM 提供方/模型 + API Key 绑定到 OpenHands。"
+      },
+      "createDialog": {
+        "title": "创建 LLM 配置"
+      },
+      "deleteDialog": {
+        "title": "删除配置",
+        "description": "确认删除「{{label}}」？关联的 GCP Secret 也会被删除。"
+      },
+      "fields": {
+        "provider": "提供方",
+        "model": "模型",
+        "modelPlaceholder": "例如 claude-sonnet-4-5, gpt-4o, gemini-2.5-pro",
+        "label": "名称",
+        "labelPlaceholder": "例如 Sonnet 主用",
+        "apiKey": "API Key",
+        "apiKeyOptional": "API Key（可选，稍后再设置）",
+        "apiKeyPlaceholder": "sk-... / 粘贴原始 Secret",
+        "apiKeyHint": "保存为 GCP Secret Manager 的新版本，旧版本会保留以便回滚。",
+        "testPrompt": "测试提示词",
+        "testPromptPlaceholder": "可选 — 留空则发送默认 ping"
+      },
+      "actions": {
+        "activate": "激活",
+        "setSecret": "设置凭据",
+        "test": "测试",
+        "edit": "编辑",
+        "runTest": "运行测试"
+      }
     }
   }
 }

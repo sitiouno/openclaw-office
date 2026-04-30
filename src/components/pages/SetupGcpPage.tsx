@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChannelsAdminView } from "@/components/console/setupgcp/ChannelsAdminView";
+import { OpenHandsAdminView } from "@/components/console/setupgcp/OpenHandsAdminView";
 import { PairingRequestsView } from "@/components/console/setupgcp/PairingRequestsView";
 import { SecretManagerNotice } from "@/components/console/setupgcp/SecretManagerNotice";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useSetupGcpStore } from "@/store/console-stores/setupgcp-store";
 
-type Tab = "pairing" | "channels";
+type Tab = "pairing" | "channels" | "openhands";
 
 const DEFAULT_OPERATOR_ID = "console-admin";
 
@@ -44,6 +45,9 @@ export function SetupGcpPage() {
         <TabButton active={tab === "channels"} onClick={() => setTab("channels")}>
           {t("setupGcp.tabs.channels")}
         </TabButton>
+        <TabButton active={tab === "openhands"} onClick={() => setTab("openhands")}>
+          {t("setupGcp.tabs.openhands")}
+        </TabButton>
       </div>
 
       {/*
@@ -55,8 +59,10 @@ export function SetupGcpPage() {
       <ErrorBoundary title={t("setupGcp.title")}>
         {tab === "pairing" ? (
           <PairingRequestsView defaultDecidedBy={DEFAULT_OPERATOR_ID} />
-        ) : (
+        ) : tab === "channels" ? (
           <ChannelsAdminView />
+        ) : (
+          <OpenHandsAdminView />
         )}
       </ErrorBoundary>
     </div>
