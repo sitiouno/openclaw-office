@@ -682,7 +682,8 @@
     "description": "Approve new branch nodes joining the fleet and manage notification channels (Telegram, etc.) backed by GCP Secret Manager.",
     "tabs": {
       "pairing": "Pairing Requests",
-      "channels": "Notification Channels"
+      "channels": "Notification Channels",
+      "openhands": "OpenHands"
     },
     "secretsNotice": {
       "title": "Secrets stay in GCP Secret Manager",
@@ -777,6 +778,52 @@
       "setSecret": "Set Secret",
       "enable": "Enable",
       "disable": "Disable"
+    },
+    "openhands": {
+      "title": "OpenHands LLM profiles",
+      "description": "Provider profiles consumed by Alekhine's OpenHands wrapper. The active profile drives every OpenHands run on this fleet.",
+      "createProfile": "Create profile",
+      "defaultBadge": "default",
+      "secretSet": "Secret set",
+      "noSecret": "No secret",
+      "lastTest": "last tested",
+      "testOk": "LLM round-trip OK.",
+      "testFailed": "Test failed: {{detail}}",
+      "banner": {
+        "title": "Active profile drives OpenHands",
+        "body": "The profile marked default is what Alekhine's OpenHands wrapper uses. API keys are persisted in GCP Secret Manager — never in the browser or registry DB."
+      },
+      "empty": {
+        "title": "No profiles configured",
+        "description": "Create a profile to bind an LLM provider/model + API key to OpenHands."
+      },
+      "createDialog": {
+        "title": "Create LLM profile"
+      },
+      "deleteDialog": {
+        "title": "Delete profile",
+        "description": "Delete \"{{label}}\"? The associated GCP secret will also be removed."
+      },
+      "fields": {
+        "provider": "Provider",
+        "model": "Model",
+        "modelPlaceholder": "e.g. claude-sonnet-4-5, gpt-4o, gemini-2.5-pro",
+        "label": "Label",
+        "labelPlaceholder": "e.g. Sonnet primary",
+        "apiKey": "API key",
+        "apiKeyOptional": "API key (optional, can be set later)",
+        "apiKeyPlaceholder": "sk-... / paste raw secret",
+        "apiKeyHint": "Stored as a new GCP Secret Manager version. Earlier versions are kept for rollback.",
+        "testPrompt": "Test prompt",
+        "testPromptPlaceholder": "Optional — leave blank for default ping"
+      },
+      "actions": {
+        "activate": "Activate",
+        "setSecret": "Set Secret",
+        "test": "Test",
+        "edit": "Edit",
+        "runTest": "Run test"
+      }
     }
   }
 }

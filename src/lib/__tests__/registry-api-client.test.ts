@@ -3,6 +3,7 @@ import {
   channels,
   DEFAULT_REGISTRY_API_URL,
   notify,
+  openhands,
   pairing,
   resolveRegistryApiConfig,
 } from "@/lib/registry-api-client";
@@ -168,5 +169,98 @@ describe("envelope extraction (sidecar shape)", () => {
     const items = await channelsApi.list();
     expect(items).toHaveLength(1);
     expect(items[0].kind).toBe("telegram");
+  });
+
+  it("openhands.profiles.list extracts profiles[] from {profiles: [...]} envelope and hits /v1/openhands/profiles", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          profiles: [
+            {
+              id: 7,
+              provider: "anthropic",
+              model: "claude-sonnet-4-5",
+              label: "Sonnet primary",
+              is_default: true,
+              has_secret: true,
+              last_test_at: null,
+              last_test_result: null,
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { openhands: openhandsApi } = await import("../registry-api-client");
+    const items = await openhandsApi.profiles.list();
+    expect(items).toHaveLength(1);
+    expect(items[0]?.provider).toBe("anthropic");
+    expect(items[0]?.is_default).toBe(true);
+    const [calledUrl, init] = fetchMock.mock.calls[0]!;
+    expect(calledUrl).toBe("http://openclaw-hq:8781/v1/openhands/profiles");
+    expect((init as RequestInit).method).toBe("GET");
+    const headers = (init as RequestInit).headers as Record<string, string>;
+    // Trust boundary is the VPN — no Authorization header.
+    expect(Object.keys(headers).map((k) => k.toLowerCase())).not.toContain("authorization");
+  });
+});
+
+describe("openhands client", () => {
+  beforeEach(() => {
+    setRuntimeUrl("http://openclaw-hq:8781");
+  });
+  afterEach(() => {
+    setRuntimeUrl(undefined);
+    global.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it("posts to /v1/openhands/profiles/{id}/activate without an Authorization header", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ id: 3, provider: "openai", is_default: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const result = await openhands.profiles.activate(3);
+    expect((result as { is_default?: boolean }).is_default).toBe(true);
+    const [calledUrl, init] = fetchMock.mock.calls[0]!;
+    expect(calledUrl).toBe("http://openclaw-hq:8781/v1/openhands/profiles/3/activate");
+    expect((init as RequestInit).method).toBe("POST");
+    const headers = (init as RequestInit).headers as Record<string, string>;
+    expect(Object.keys(headers).map((k) => k.toLowerCase())).not.toContain("authorization");
+  });
+
+  it("posts JSON body for openhands.profiles.create", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            id: 11,
+            provider: "deepseek",
+            model: "deepseek-chat",
+            label: "DS",
+            is_default: false,
+            has_secret: false,
+            last_test_at: null,
+            last_test_result: null,
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } },
+        ),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const created = await openhands.profiles.create({
+      provider: "deepseek",
+      model: "deepseek-chat",
+      label: "DS",
+    });
+    expect(created.id).toBe(11);
+    const [calledUrl, init] = fetchMock.mock.calls[0]!;
+    expect(calledUrl).toBe("http://openclaw-hq:8781/v1/openhands/profiles");
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body).toEqual({ provider: "deepseek", model: "deepseek-chat", label: "DS" });
   });
 });

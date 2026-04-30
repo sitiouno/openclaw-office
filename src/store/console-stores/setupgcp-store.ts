@@ -1,15 +1,20 @@
 import { create } from "zustand";
 import {
   channels as channelsApi,
+  openhands as openhandsApi,
   pairing as pairingApi,
   resolveRegistryApiConfig,
   RegistryApiNotConfiguredError,
   type ChannelTestResult,
   type CreateChannelBody,
+  type CreateOpenHandsProfileBody,
   type NotificationChannel,
+  type OpenHandsProfile,
+  type OpenHandsTestResult,
   type PairingRequest,
   type PairingStatus,
   type UpdateChannelBody,
+  type UpdateOpenHandsProfileBody,
 } from "@/lib/registry-api-client";
 
 function toMessage(err: unknown): string {
@@ -53,6 +58,13 @@ interface SetupGcpState {
   channelActionInFlight: Record<number, boolean>;
   lastChannelTest: Record<number, ChannelTestResult | null>;
 
+  // OpenHands
+  openhandsProfiles: OpenHandsProfile[];
+  openhandsLoading: boolean;
+  openhandsError: string | null;
+  openhandsActionInFlight: Record<number, boolean>;
+  lastOpenHandsTest: Record<number, OpenHandsTestResult | null>;
+
   // Config readiness
   configured: boolean;
   baseUrl: string;
@@ -70,6 +82,14 @@ interface SetupGcpState {
   deleteChannel: (id: number) => Promise<void>;
   setChannelSecret: (id: number, secret: string) => Promise<void>;
   testChannel: (id: number, message?: string) => Promise<ChannelTestResult | null>;
+
+  fetchOpenHandsProfiles: () => Promise<void>;
+  createProfile: (body: CreateOpenHandsProfileBody) => Promise<OpenHandsProfile | null>;
+  updateProfile: (id: number, body: UpdateOpenHandsProfileBody) => Promise<void>;
+  setProfileSecret: (id: number, secret: string) => Promise<void>;
+  activateProfile: (id: number) => Promise<void>;
+  testProfile: (id: number, prompt?: string) => Promise<OpenHandsTestResult | null>;
+  deleteProfile: (id: number) => Promise<void>;
 }
 
 // Resolve config defensively at module load: any throw here would otherwise
@@ -96,6 +116,12 @@ export const useSetupGcpStore = create<SetupGcpState>((set, get) => ({
   channelsError: null,
   channelActionInFlight: {},
   lastChannelTest: {},
+
+  openhandsProfiles: [],
+  openhandsLoading: false,
+  openhandsError: null,
+  openhandsActionInFlight: {},
+  lastOpenHandsTest: {},
 
   configured: initialConfig.configured,
   baseUrl: initialConfig.baseUrl,
@@ -263,6 +289,123 @@ export const useSetupGcpStore = create<SetupGcpState>((set, get) => ({
         const next = { ...s.channelActionInFlight };
         delete next[id];
         return { channelActionInFlight: next };
+      });
+    }
+  },
+
+  fetchOpenHandsProfiles: async () => {
+    set({ openhandsLoading: true, openhandsError: null });
+    try {
+      const items = await openhandsApi.profiles.list();
+      set({
+        openhandsProfiles: Array.isArray(items) ? items : [],
+        openhandsLoading: false,
+      });
+    } catch (err) {
+      set({
+        openhandsError: describeError(err, get().baseUrl),
+        openhandsLoading: false,
+        openhandsProfiles: [],
+      });
+    }
+  },
+
+  createProfile: async (body) => {
+    try {
+      const created = await openhandsApi.profiles.create(body);
+      await get().fetchOpenHandsProfiles();
+      return created;
+    } catch (err) {
+      set({ openhandsError: toMessage(err) });
+      return null;
+    }
+  },
+
+  updateProfile: async (id, body) => {
+    set((s) => ({ openhandsActionInFlight: { ...s.openhandsActionInFlight, [id]: true } }));
+    try {
+      await openhandsApi.profiles.update(id, body);
+      await get().fetchOpenHandsProfiles();
+    } catch (err) {
+      set({ openhandsError: toMessage(err) });
+    } finally {
+      set((s) => {
+        const next = { ...s.openhandsActionInFlight };
+        delete next[id];
+        return { openhandsActionInFlight: next };
+      });
+    }
+  },
+
+  setProfileSecret: async (id, secret) => {
+    set((s) => ({ openhandsActionInFlight: { ...s.openhandsActionInFlight, [id]: true } }));
+    try {
+      await openhandsApi.profiles.setSecret(id, { secret_value: secret });
+      await get().fetchOpenHandsProfiles();
+    } catch (err) {
+      set({ openhandsError: toMessage(err) });
+    } finally {
+      set((s) => {
+        const next = { ...s.openhandsActionInFlight };
+        delete next[id];
+        return { openhandsActionInFlight: next };
+      });
+    }
+  },
+
+  activateProfile: async (id) => {
+    set((s) => ({ openhandsActionInFlight: { ...s.openhandsActionInFlight, [id]: true } }));
+    try {
+      await openhandsApi.profiles.activate(id);
+      await get().fetchOpenHandsProfiles();
+    } catch (err) {
+      set({ openhandsError: toMessage(err) });
+    } finally {
+      set((s) => {
+        const next = { ...s.openhandsActionInFlight };
+        delete next[id];
+        return { openhandsActionInFlight: next };
+      });
+    }
+  },
+
+  testProfile: async (id, prompt) => {
+    set((s) => ({ openhandsActionInFlight: { ...s.openhandsActionInFlight, [id]: true } }));
+    try {
+      const result = await openhandsApi.profiles.test(id, prompt ? { prompt } : {});
+      set((s) => ({ lastOpenHandsTest: { ...s.lastOpenHandsTest, [id]: result } }));
+      // refresh so last_test_at / last_test_result reflect server state
+      await get().fetchOpenHandsProfiles();
+      return result;
+    } catch (err) {
+      const msg = toMessage(err);
+      const failure: OpenHandsTestResult = { ok: false, detail: msg };
+      set((s) => ({
+        lastOpenHandsTest: { ...s.lastOpenHandsTest, [id]: failure },
+        openhandsError: msg,
+      }));
+      return failure;
+    } finally {
+      set((s) => {
+        const next = { ...s.openhandsActionInFlight };
+        delete next[id];
+        return { openhandsActionInFlight: next };
+      });
+    }
+  },
+
+  deleteProfile: async (id) => {
+    set((s) => ({ openhandsActionInFlight: { ...s.openhandsActionInFlight, [id]: true } }));
+    try {
+      await openhandsApi.profiles.delete(id);
+      await get().fetchOpenHandsProfiles();
+    } catch (err) {
+      set({ openhandsError: toMessage(err) });
+    } finally {
+      set((s) => {
+        const next = { ...s.openhandsActionInFlight };
+        delete next[id];
+        return { openhandsActionInFlight: next };
       });
     }
   },
