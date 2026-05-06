@@ -1,12 +1,16 @@
-# Guía de Onboarding para Nuevos Nodos (SitioUno)
+# Guía de Onboarding UI para Nuevos Nodos (SitioUno)
 
-Esta es la guía oficial para acoplar una nueva sucursal o nodo a la arquitectura unificada de **SitioUno**. Siguiendo estos pasos, el nuevo nodo heredará todas las customizaciones (branding neón, interfaz de skills locales, etc.) y compartirá la base de conocimiento global.
+Esta guía cubre solo la **parte gráfica/OpenClaw Office UI** que un nodo debe instalar para heredar la experiencia visual custom. El onboarding completo de infraestructura, VPN, registry, MCP, secrets y delegación vive en `sitiouno/gcloud-office`.
+
+Mapa de repos: [SITIOUNO-REPO-MAP.md](SITIOUNO-REPO-MAP.md).
 
 ## Paso 1: Clonar este Repositorio Base
 En el workspace del agente programador del nuevo nodo, ejecuta:
 ```bash
 git clone https://github.com/sitiouno/openclaw-office.git
 ```
+
+Antes de tocar servicios del nodo, verificar que el runbook de infraestructura correspondiente exista en `gcloud-office`.
 
 ## Paso 2: Crear al DevOps (Capablanca)
 Todo nodo DEBE tener un agente llamado **Capablanca** dedicado a operaciones domésticas y de sistema.
