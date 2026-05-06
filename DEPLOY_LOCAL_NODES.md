@@ -1,6 +1,8 @@
-# Protocolo de Despliegue y Sincronización de Nodos Locales
+# Protocolo de Despliegue UI y Sincronización de Nodos Locales
 
-Este documento establece las reglas para los agentes DevOps locales (ej. Capablanca en Miami, o sus equivalentes en otras sucursales).
+Este documento establece las reglas para desplegar **este frontend** en nodos locales. La infraestructura del nodo, registry, MCP, VPN y contratos de delegación se mantienen en `sitiouno/gcloud-office`.
+
+Ver tambien: [SITIOUNO-REPO-MAP.md](SITIOUNO-REPO-MAP.md).
 
 ## 1. Responsabilidad Estricta
 Ningún agente DevOps local debe intentar conectarse por SSH, Bastion o VPN para hacer despliegues en infraestructura externa (HQ u otros nodos). Cada nodo debe tener su propio agente vigilante que haga un `pull` de este repositorio y compile los binarios localmente.
