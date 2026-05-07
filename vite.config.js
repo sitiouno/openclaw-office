@@ -1,6 +1,7 @@
 import { resolve, join } from "node:path";
 import { readFileSync, existsSync, mkdirSync } from "node:fs";
 import { readFile, writeFile, readdir, unlink, access, mkdir, rmdir } from "node:fs/promises";
+import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import tailwindcss from "@tailwindcss/vite";
@@ -8,6 +9,24 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(readFileSync(resolve(rootDir, "package.json"), "utf-8"));
+
+// Resuelve commit SHA del HEAD para inyectarlo al bundle como
+// __APP_COMMIT__. Permite distinguir builds del mismo pkg.version
+// (que se bumpea manual) entre sucursales — Miami, Sicilia, HQ pueden
+// tener el mismo "2026.4.25-1" pero distinto SHA, ahora visible en UI.
+// Override por env VITE_APP_COMMIT (útil para CI o tarball sin .git).
+const appCommit = (() => {
+    const fromEnv = process.env.VITE_APP_COMMIT || process.env.GIT_COMMIT;
+    if (fromEnv) return fromEnv.slice(0, 7);
+    try {
+        return execSync("git rev-parse --short=7 HEAD", {
+            cwd: rootDir,
+            stdio: ["ignore", "pipe", "ignore"],
+        }).toString().trim();
+    } catch {
+        return "unknown";
+    }
+})();
 const rawGatewayUrl = process.env.OPENCLAW_GATEWAY_URL || process.env.VITE_GATEWAY_URL || "ws://localhost:18789";
 const gatewayUrl = new URL(rawGatewayUrl);
 const gatewayTarget = `${gatewayUrl.protocol === "wss:" ? "https:" : gatewayUrl.protocol === "ws:" ? "http:" : gatewayUrl.protocol}//${gatewayUrl.host}`;
@@ -216,6 +235,7 @@ function chatCacheMiddleware() {
 export default defineConfig({
     define: {
         __APP_VERSION__: JSON.stringify(pkg.version),
+        __APP_COMMIT__: JSON.stringify(appCommit),
     },
     plugins: [react(), tailwindcss(), chatCacheMiddleware()],
     resolve: {
