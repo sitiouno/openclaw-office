@@ -10,6 +10,7 @@ import { networkInterfaces, homedir } from "node:os";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const distDir = resolve(__dirname, "..", "dist");
+const DEFAULT_OFFICE_TITLE = "SitioUno Office";
 
 // --- Service subcommand routing ---
 // If argv[2] is "service", delegate to the service manager module.
@@ -119,9 +120,214 @@ function readTokenFromConfig() {
   return null;
 }
 
+function parseEnvFile(raw) {
+  const values = {};
+  for (const line of raw.split(/\r?\n/u)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) {
+      continue;
+    }
+    const [key, ...rest] = trimmed.split("=");
+    let value = rest.join("=").trim();
+    if (
+      (value.startsWith("\"") && value.endsWith("\"")) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    values[key.trim()] = value;
+  }
+  return values;
+}
+
+function readBranchReceiverEnv() {
+  const profile = process.env.OPENCLAW_PROFILE || process.env.DELEGATE_BRANCH || "sicilia";
+  const candidates = [
+    process.env.OPENCLAW_BRANCH_RECEIVER_ENV,
+    join(homedir(), ".config", `${profile}-delegate-receiver.env`),
+    join(homedir(), ".config", "sicilia-delegate-receiver.env"),
+  ].filter(Boolean);
+
+  for (const filePath of candidates) {
+    try {
+      if (!existsSync(filePath)) {
+        continue;
+      }
+      return { values: parseEnvFile(readFileSync(filePath, "utf-8")), source: filePath };
+    } catch {
+      // continue to next candidate
+    }
+  }
+  return { values: {}, source: "" };
+}
+
+function readRegistryEnv() {
+  const candidates = [
+    process.env.OPENCLAW_REGISTRY_ENV,
+    process.env.KASPAR_REGISTRY_ENV,
+    join(homedir(), ".config", "kaspar-registry.env"),
+    join(homedir(), ".config", "openclaw-node-bootstrap.env"),
+  ].filter(Boolean);
+
+  for (const filePath of candidates) {
+    try {
+      if (!existsSync(filePath)) {
+        continue;
+      }
+      return { values: parseEnvFile(readFileSync(filePath, "utf-8")), source: filePath };
+    } catch {
+      // continue to next candidate
+    }
+  }
+  return { values: {}, source: "" };
+}
+
+function normalizeBranchApiBase(rawUrl) {
+  const value = String(rawUrl || "").trim().replace(/\/+$/u, "");
+  if (!value) {
+    return "";
+  }
+  return value.replace(/\/v1\/(kanban|delegate|report|status)$/u, "");
+}
+
+function normalizeBranchDisplayName(value) {
+  const branch = String(value || "").trim();
+  if (!branch) {
+    return "";
+  }
+  if (/[A-Z]/u.test(branch) || branch.includes(" ")) {
+    return branch;
+  }
+  return branch
+    .split(/[-_]+/u)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function resolveBranchKanbanConfig() {
+  const receiverEnv = readBranchReceiverEnv();
+  const fileValues = receiverEnv.values;
+  const branchId =
+    process.env.OPENCLAW_BRANCH ||
+    process.env.OPENCLAW_PROFILE ||
+    process.env.DELEGATE_BRANCH ||
+    fileValues.OPENCLAW_BRANCH ||
+    fileValues.OPENCLAW_PROFILE ||
+    fileValues.DELEGATE_BRANCH ||
+    "";
+  const branchLabel =
+    process.env.OPENCLAW_BRANCH_LABEL ||
+    process.env.VITE_BRANCH_LABEL ||
+    fileValues.OPENCLAW_BRANCH_LABEL ||
+    fileValues.VITE_BRANCH_LABEL ||
+    branchId;
+  const inferredBase =
+    fileValues.DELEGATE_BIND && fileValues.DELEGATE_PORT
+      ? `http://${fileValues.DELEGATE_BIND}:${fileValues.DELEGATE_PORT}`
+      : "";
+  const baseUrl = normalizeBranchApiBase(
+    process.env.OPENCLAW_BRANCH_API_BASE_URL ||
+      process.env.OPENCLAW_BRANCH_KANBAN_URL ||
+      process.env.OPENCLAW_DELEGATE_ENDPOINT ||
+      inferredBase,
+  );
+  const token =
+    process.env.OPENCLAW_BRANCH_DELEGATE_TOKEN ||
+    process.env.OPENCLAW_KANBAN_TOKEN ||
+    process.env.DELEGATION_TOKEN ||
+    fileValues.DELEGATION_TOKEN ||
+    "";
+
+  return {
+    baseUrl,
+    token,
+    branchId,
+    branchLabel,
+    source: baseUrl ? (receiverEnv.source || "environment") : "",
+  };
+}
+
+function resolveRegistryConfig() {
+  const registryEnv = readRegistryEnv();
+  const values = registryEnv.values;
+  return {
+    baseUrl: String(
+      process.env.KASPAR_REGISTRY_BASE_URL ||
+        process.env.OPENCLAW_REGISTRY_API_URL ||
+        values.KASPAR_REGISTRY_BASE_URL ||
+        "",
+    ).trim().replace(/\/+$/u, ""),
+    token: String(
+      process.env.KASPAR_REGISTRY_API_TOKEN ||
+        process.env.OPENCLAW_REGISTRY_API_TOKEN ||
+        values.KASPAR_REGISTRY_API_TOKEN ||
+        "",
+    ).trim(),
+    source: registryEnv.source || "environment",
+  };
+}
+
+async function requestJson(url, token, timeoutMs = 3000) {
+  const upstreamUrl = new URL(url);
+  const doRequest = upstreamUrl.protocol === "https:" ? httpsRequest : httpRequest;
+  return new Promise((resolve) => {
+    const req = doRequest(
+      upstreamUrl,
+      {
+        method: "GET",
+        headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+        timeout: timeoutMs,
+      },
+      (res) => {
+        const chunks = [];
+        res.on("data", (chunk) => chunks.push(chunk));
+        res.on("end", () => {
+          const raw = Buffer.concat(chunks).toString("utf-8");
+          if ((res.statusCode || 500) >= 400) {
+            resolve(null);
+            return;
+          }
+          try {
+            resolve(raw ? JSON.parse(raw) : {});
+          } catch {
+            resolve(null);
+          }
+        });
+      },
+    );
+    req.on("timeout", () => req.destroy(new Error("registry timeout")));
+    req.on("error", () => resolve(null));
+    req.end();
+  });
+}
+
+async function resolveRegistryOfficeIdentity(branchId) {
+  const registry = resolveRegistryConfig();
+  if (!branchId || !registry.baseUrl || !registry.token) {
+    return null;
+  }
+  const snapshot = await requestJson(`${registry.baseUrl}/v1/branches`, registry.token);
+  const branches = snapshot && Array.isArray(snapshot.branches) ? snapshot.branches : [];
+  const branch = branches.find((item) => item && item.branch_id === branchId);
+  if (!branch) {
+    return null;
+  }
+  const metadata = branch.metadata && typeof branch.metadata === "object" ? branch.metadata : {};
+  const office = metadata.office && typeof metadata.office === "object" ? metadata.office : {};
+  const displayName = normalizeBranchDisplayName(
+    branch.display_name || office.branch_label || branch.branch_id || branchId,
+  );
+  return {
+    officeTitle: String(office.title || DEFAULT_OFFICE_TITLE).trim() || DEFAULT_OFFICE_TITLE,
+    branchLabel: displayName,
+    source: registry.source,
+  };
+}
+
 // --- Config resolution ---
 
-function resolveConfig() {
+async function resolveConfig() {
   const args = parseArgs();
 
   let token = "";
@@ -144,18 +350,28 @@ function resolveConfig() {
   const gatewayUrl = args.gatewayUrl || process.env.OPENCLAW_GATEWAY_URL || "ws://localhost:18789";
   const port = args.port || parseInt(process.env.PORT || "5180", 10);
   const host = args.host || process.env.HOST || "0.0.0.0";
+  const branchKanban = resolveBranchKanbanConfig();
+  const registryIdentity = await resolveRegistryOfficeIdentity(branchKanban.branchId);
+  const officeTitle =
+    registryIdentity?.officeTitle ||
+    process.env.OPENCLAW_OFFICE_TITLE ||
+    process.env.VITE_OFFICE_TITLE ||
+    DEFAULT_OFFICE_TITLE;
+  const branchLabel = registryIdentity?.branchLabel || normalizeBranchDisplayName(branchKanban.branchLabel);
 
-  return { token, tokenSource, gatewayUrl, port, host };
+  return { token, tokenSource, gatewayUrl, port, host, branchKanban, officeTitle, branchLabel };
 }
 
 // --- HTTP Server ---
 
-const config = resolveConfig();
+const config = await resolveConfig();
 
 const runtimeConfig = JSON.stringify({
   gatewayUrl: config.gatewayUrl,
   gatewayToken: config.token,
   gatewayWsPath: "/gateway-ws",
+  officeTitle: config.officeTitle,
+  branchLabel: config.branchLabel,
 });
 const configScript = `<script>window.__OPENCLAW_CONFIG__=${runtimeConfig};</script>`;
 const gatewayWsPrefixes = new Set(["/gateway-ws", "/api/gateway/ws"]);
@@ -466,6 +682,114 @@ function readRequestBody(req) {
   });
 }
 
+function branchApiPath(pathname) {
+  if (pathname === "/api/branch-kanban") {
+    return "/v1/kanban";
+  }
+  if (pathname === "/api/branch-report") {
+    return "/v1/delegate";
+  }
+  if (pathname === "/api/branch-kanban/tasks") {
+    return "/v1/kanban/tasks";
+  }
+  if (pathname === "/api/branch-kanban/events") {
+    return "/v1/kanban/events";
+  }
+  return "";
+}
+
+async function requestBranchApi({ upstreamPath, method, body }) {
+  const branch = config.branchKanban;
+  if (!branch.baseUrl || !branch.token) {
+    return {
+      statusCode: 503,
+      data: {
+        ok: false,
+        error: "Branch Kanban is not configured",
+        endpoint_configured: Boolean(branch.baseUrl),
+        token_configured: Boolean(branch.token),
+      },
+    };
+  }
+
+  const upstreamUrl = new URL(upstreamPath, `${branch.baseUrl}/`);
+  const payload = body == null ? null : Buffer.from(JSON.stringify(body), "utf-8");
+  const headers = {
+    Accept: "application/json",
+    Authorization: `Bearer ${branch.token}`,
+  };
+  if (payload) {
+    headers["Content-Type"] = "application/json; charset=utf-8";
+    headers["Content-Length"] = String(payload.length);
+  }
+
+  const doRequest = upstreamUrl.protocol === "https:" ? httpsRequest : httpRequest;
+  return new Promise((resolve) => {
+    const upstreamReq = doRequest(
+      upstreamUrl,
+      { method, headers, timeout: 10000 },
+      (upstreamRes) => {
+        const chunks = [];
+        upstreamRes.on("data", (chunk) => chunks.push(chunk));
+        upstreamRes.on("end", () => {
+          const raw = Buffer.concat(chunks).toString("utf-8");
+          try {
+            resolve({
+              statusCode: upstreamRes.statusCode || 502,
+              data: raw ? JSON.parse(raw) : {},
+            });
+          } catch {
+            resolve({
+              statusCode: upstreamRes.statusCode || 502,
+              data: { ok: false, error: "Invalid JSON from branch receiver" },
+            });
+          }
+        });
+      },
+    );
+
+    upstreamReq.on("timeout", () => {
+      upstreamReq.destroy(new Error("branch receiver timeout"));
+    });
+    upstreamReq.on("error", (err) => {
+      resolve({ statusCode: 502, data: { ok: false, error: String(err.message || err) } });
+    });
+    if (payload) {
+      upstreamReq.write(payload);
+    }
+    upstreamReq.end();
+  });
+}
+
+async function handleBranchKanbanApi(req, res, pathname) {
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    });
+    res.end();
+    return true;
+  }
+
+  const upstreamPath = branchApiPath(pathname);
+  if (!upstreamPath) {
+    return false;
+  }
+  const allowed =
+    req.method === "GET" ||
+    (req.method === "POST" && (pathname.endsWith("/tasks") || pathname.endsWith("/events")));
+  if (!allowed) {
+    sendJson(res, 405, { ok: false, error: "Method not allowed" });
+    return true;
+  }
+
+  const body = req.method === "GET" ? null : await readRequestBody(req);
+  const result = await requestBranchApi({ upstreamPath, method: req.method, body });
+  sendJson(res, result.statusCode, result.data);
+  return true;
+}
+
 async function handleChatCacheApi(req, res, pathname) {
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
@@ -572,6 +896,22 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url || "/", `http://${req.headers.host}`);
   const pathname = decodeURIComponent(url.pathname);
 
+  if (pathname.startsWith("/api/branch-kanban") || pathname === "/api/branch-report") {
+    try {
+      const handled = await handleBranchKanbanApi(req, res, pathname);
+      if (handled) return;
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: String(err) });
+      return;
+    }
+  }
+
+  if (pathname === "/kanban") {
+    res.writeHead(302, { Location: "/#/kanban" });
+    res.end();
+    return;
+  }
+
   // Chat cache REST API
   if (pathname.startsWith("/api/chat-cache/")) {
     try {
@@ -635,6 +975,9 @@ server.listen(config.port, config.host, () => {
   }
   console.log();
   console.log(`  \x1b[32m\u{27A1}\x1b[0m  Gateway: \x1b[33m${config.gatewayUrl}\x1b[0m`);
+  if (config.branchKanban.baseUrl) {
+    console.log(`  \x1b[32m\u{27A1}\x1b[0m  Kanban:  \x1b[33m${config.branchKanban.baseUrl}\x1b[0m`);
+  }
   if (config.token) {
     console.log(`  \x1b[32m\u{2713}\x1b[0m  Token:   \x1b[32mloaded\x1b[0m \x1b[90m(from ${config.tokenSource})\x1b[0m`);
   } else {

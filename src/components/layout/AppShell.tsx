@@ -21,7 +21,7 @@ export function AppShell({ children, isMobile = false }: AppShellProps) {
   const currentPage = useOfficeStore((s) => s.currentPage);
 
   const initEventHistory = useOfficeStore((s) => s.initEventHistory);
-  const hideSidebar = currentPage === "chat";
+  const hideSidebar = currentPage === "chat" || currentPage === "kanban";
 
   useEffect(() => {
     if (isMobile) {

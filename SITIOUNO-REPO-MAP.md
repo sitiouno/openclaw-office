@@ -20,6 +20,18 @@ Este repo es el **repo grafico y de producto UI**. Su trabajo es mostrar y opera
 - Si cambia la identidad/runtime de Zeus como agente Hermes: va en `hermes-agent`; este repo solo puede consumirlo o enlazarlo desde UI.
 - Si cambia el simulador MiroFish: va en `mirofish-original-ai-forecast`; este repo solo puede enlazarlo o mostrar su estado.
 
+## Naming Canonico de Sucursal
+
+El Office renderiza, pero no inventa, nombres de sucursal. El nombre visible del neon debe ser:
+
+```text
+SITIOUNO OFFICE - {DISPLAY_NAME}
+```
+
+`DISPLAY_NAME` viene del registry SQL de flota (`branch_nodes.display_name`) publicado por `gcloud-office`. Ver [SITIOUNO-BRANCH-NAMING.md](SITIOUNO-BRANCH-NAMING.md).
+
+El pill de version del TopBar muestra `package.version + git SHA` para que el autoupdate de sucursales pueda detectar drift de codigo sin mezclarlo con el nombre visual.
+
 ## Local Skills
 
 `local-skills/` queda como zona transicional para skills que el Office distribuye junto con la experiencia local. Nuevas skills de infraestructura multi-nodo deben preferir `gcloud-office` o el repo especifico del agente/servicio que las consume.
