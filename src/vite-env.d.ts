@@ -4,8 +4,11 @@ declare const __APP_VERSION__: string;
 declare const __APP_COMMIT__: string;
 
 interface ImportMetaEnv {
-  readonly VITE_GATEWAY_URL: string;
-  readonly VITE_GATEWAY_TOKEN: string;
+  readonly VITE_GATEWAY_URL?: string;
+  readonly VITE_GATEWAY_TOKEN?: string;
+  readonly VITE_GATEWAY_WS_PATH?: string;
+  readonly VITE_OFFICE_TITLE?: string;
+  readonly VITE_BRANCH_LABEL?: string;
   /**
    * Base URL of the local HQ sidecar that exposes the registry-API surface
    * (pairing requests + notification channels + notify broadcast).

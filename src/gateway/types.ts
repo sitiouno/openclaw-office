@@ -269,6 +269,7 @@ export type ThemeMode = "light" | "dark";
 export type PageId =
   | "office"
   | "chat"
+  | "kanban"
   | "dashboard"
   | "agents"
   | "channels"

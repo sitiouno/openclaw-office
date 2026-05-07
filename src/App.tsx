@@ -8,6 +8,7 @@ import { ChannelsPage } from "@/components/pages/ChannelsPage";
 import { CronPage } from "@/components/pages/CronPage";
 import { DashboardPage } from "@/components/pages/DashboardPage";
 import { ChatPage } from "@/components/pages/ChatPage";
+import { KanbanPage } from "@/components/pages/KanbanPage";
 import { SettingsPage } from "@/components/pages/SettingsPage";
 import { SetupGcpPage } from "@/components/pages/SetupGcpPage";
 import { SkillsPage } from "@/components/pages/SkillsPage";
@@ -16,6 +17,7 @@ import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import type { PageId } from "@/gateway/types";
 import { useGatewayConnection } from "@/hooks/useGatewayConnection";
 import { useResponsive } from "@/hooks/useResponsive";
+import { getRuntimeConfig } from "@/lib/runtime-config";
 import { useOfficeStore } from "@/store/office-store";
 
 function ThemeSync() {
@@ -36,6 +38,7 @@ function ThemeSync() {
 const PAGE_MAP: Record<string, PageId> = {
   "/": "office",
   "/chat": "chat",
+  "/kanban": "kanban",
   "/dashboard": "dashboard",
   "/agents": "agents",
   "/channels": "channels",
@@ -75,9 +78,7 @@ function PageTracker() {
 }
 
 export function App() {
-  const injected = (window as unknown as Record<string, unknown>).__OPENCLAW_CONFIG__ as
-    | { gatewayUrl?: string; gatewayToken?: string; gatewayWsPath?: string }
-    | undefined;
+  const injected = getRuntimeConfig();
   const configuredGatewayUrl = injected?.gatewayUrl || import.meta.env.VITE_GATEWAY_URL || "ws://localhost:18789";
   const configuredGatewayWsPath =
     injected?.gatewayWsPath || import.meta.env.VITE_GATEWAY_WS_PATH || configuredGatewayUrl;
@@ -107,6 +108,7 @@ export function App() {
       <ChatWorkspaceBootstrap wsClient={wsClient} />
       <Routes>
         <Route path="/" element={<AppShell isMobile={isMobile}><FloorPlan /></AppShell>} />
+        <Route path="/kanban" element={<AppShell isMobile={isMobile}><KanbanPage /></AppShell>} />
         <Route element={<ConsoleLayout />}>
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />

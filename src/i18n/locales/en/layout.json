@@ -7,9 +7,11 @@
     "console": "Console",
     "office": "Office",
     "chat": "Chat",
+    "kanban": "Kanban",
     "navigation": "Primary navigation",
     "pageTitles": {
       "chat": "Chat",
+      "kanban": "Kanban",
       "dashboard": "Dashboard",
       "channels": "Channels",
       "skills": "Skills",
