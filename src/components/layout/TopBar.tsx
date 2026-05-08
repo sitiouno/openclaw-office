@@ -1,3 +1,4 @@
+import { BookOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher";
@@ -45,6 +46,7 @@ export function TopBar({ isMobile = false }: TopBarProps) {
         <TopNav currentPage={currentPage} />
       </div>
       <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+        {!isMobile && <NodeGuideLink />}
         {!isMobile && <ThemeToggle theme={theme} setTheme={setTheme} />}
         {!isMobile && <LanguageSwitcher />}
         <ConnectionIndicator
@@ -168,6 +170,24 @@ function ConnectionIndicator({
         {connectionError && connectionStatus === "error" ? connectionError : statusCfg.label}
       </span>
     </div>
+  );
+}
+
+// Link al HTML de guía operativa per-nodo (ruta servida por bin/openclaw-office.js).
+// El renderer canónico (gcloud-office/scripts/render-node-dashboard.py) genera el
+// HTML cada cycle del capablanca runner; ver doc 13-PER-NODE-DASHBOARD.md.
+function NodeGuideLink() {
+  return (
+    <a
+      href="/node-guide"
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Node Guide — comandos, endpoints y paths del nodo"
+      aria-label="Open node guide"
+      className="ml-1 flex h-7 w-7 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+    >
+      <BookOpen size={15} />
+    </a>
   );
 }
 
