@@ -385,6 +385,44 @@ async function tryReadFile(filePath) {
   }
 }
 
+// Resuelve el path al HTML de guía operativa per-nodo.
+// Override via env OPENCLAW_NODE_GUIDE_PATH; default usa OPENCLAW_PROFILE.
+// El renderer canónico (gcloud-office/scripts/render-node-dashboard.py) lo
+// genera ahí cada cycle del capablanca runner.
+function nodeGuidePath() {
+  const fromEnv = process.env.OPENCLAW_NODE_GUIDE_PATH;
+  if (fromEnv) return fromEnv;
+  const profile =
+    process.env.OPENCLAW_PROFILE || process.env.DELEGATE_BRANCH || "default";
+  return join(homedir(), `.openclaw-${profile}`, "dashboard", "node-dashboard.html");
+}
+
+async function serveNodeGuide(res) {
+  const guidePath = nodeGuidePath();
+  const buf = await tryReadFile(guidePath);
+  if (!buf) {
+    res.writeHead(404, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(
+      `<!doctype html><html><body style="font-family:sans-serif;padding:2em">
+       <h1>Node Guide no generado todavía</h1>
+       <p>Esperado en <code>${guidePath}</code>.</p>
+       <p>Genera la guía corriendo el capablanca runner del nodo, o manualmente:</p>
+       <pre>python3 ~/gcloud-office/scripts/render-node-dashboard.py \\
+    --branch &lt;branch&gt; \\
+    --fleet ~/openclaw-workspaces/&lt;coordinator&gt;/FLEET.local.yml \\
+    --out ${guidePath}</pre>
+       <p>Detalle: <a href="https://github.com/SiteOneTech/gcloud-office/blob/main/openclaw-office/docs/13-PER-NODE-DASHBOARD.md">13-PER-NODE-DASHBOARD.md</a></p>
+       </body></html>`,
+    );
+    return;
+  }
+  res.writeHead(200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-cache",
+  });
+  res.end(buf);
+}
+
 let indexHtmlCache = null;
 
 async function getIndexHtml() {
@@ -909,6 +947,18 @@ const server = createServer(async (req, res) => {
   if (pathname === "/kanban") {
     res.writeHead(302, { Location: "/#/kanban" });
     res.end();
+    return;
+  }
+
+  // Per-node operational guide (HTML generado por gcloud-office/scripts/render-node-dashboard.py).
+  // Sirve directo (no SPA) para abrirlo en nueva tab desde la TopBar.
+  if (pathname === "/node-guide" || pathname === "/node-guide/") {
+    try {
+      await serveNodeGuide(res);
+    } catch (err) {
+      res.writeHead(500, { "Content-Type": "text/plain" });
+      res.end(`Error sirviendo node-guide: ${err}`);
+    }
     return;
   }
 
