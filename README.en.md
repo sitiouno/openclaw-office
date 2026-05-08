@@ -61,6 +61,8 @@ Full system management interface with dedicated pages:
 - **i18n** — Full Chinese/English bilingual support with runtime language switching
 - **Mock Mode** — Develop without a live Gateway connection
 - **Responsive** — Mobile-optimized with automatic 2D fallback
+- **Branch Kanban** — `/kanban` uses the branch delegate receiver from
+  `gcloud-office`; see [KANBAN-BACKEND.md](./KANBAN-BACKEND.md)
 
 ---
 

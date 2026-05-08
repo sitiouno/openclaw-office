@@ -61,6 +61,8 @@ This fork owns the graphical/product surface of OpenClaw Office: React UI, visua
 - **国际化** — 完整的中英文双语支持，运行时语言切换
 - **Mock 模式** — 无需连接 Gateway 即可开发
 - **响应式** — 移动端优化，自动切换 2D 模式
+- **Branch Kanban** — `/kanban` 依赖 `gcloud-office` 的 branch delegate
+  receiver；见 [KANBAN-BACKEND.md](./KANBAN-BACKEND.md)
 
 ---
 
