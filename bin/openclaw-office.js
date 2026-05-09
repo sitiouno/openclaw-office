@@ -216,12 +216,16 @@ function resolveBranchKanbanConfig() {
     fileValues.OPENCLAW_PROFILE ||
     fileValues.DELEGATE_BRANCH ||
     "";
+  // Canonical rename: el nodo histórico "hq" se llama BAHAMAS desde
+  // 2026-05-09. Auto-display sin requerir env var en cada deploy.
+  // Ver gcloud-office/docs/RUNBOOK-RENAME-HQ-TO-BAHAMAS.md.
+  const isHqLegacy = String(branchId || "").trim().toLowerCase() === "hq";
   const branchLabel =
     process.env.OPENCLAW_BRANCH_LABEL ||
     process.env.VITE_BRANCH_LABEL ||
     fileValues.OPENCLAW_BRANCH_LABEL ||
     fileValues.VITE_BRANCH_LABEL ||
-    branchId;
+    (isHqLegacy ? "BAHAMAS" : branchId);
   const inferredBase =
     fileValues.DELEGATE_BIND && fileValues.DELEGATE_PORT
       ? `http://${fileValues.DELEGATE_BIND}:${fileValues.DELEGATE_PORT}`
@@ -315,8 +319,14 @@ async function resolveRegistryOfficeIdentity(branchId) {
   }
   const metadata = branch.metadata && typeof branch.metadata === "object" ? branch.metadata : {};
   const office = metadata.office && typeof metadata.office === "object" ? metadata.office : {};
+  // Canonical rename: registry rows con branch_id="hq" sin display_name
+  // explícito se renderan como "BAHAMAS". Ver canonical doc.
+  const rawLabel = branch.display_name || office.branch_label || branch.branch_id || branchId;
+  const labelWithRename = String(rawLabel || "").trim().toLowerCase() === "hq"
+    ? "BAHAMAS"
+    : rawLabel;
   const displayName = normalizeBranchDisplayName(
-    branch.display_name || office.branch_label || branch.branch_id || branchId,
+    labelWithRename,
   );
   return {
     officeTitle: String(office.title || DEFAULT_OFFICE_TITLE).trim() || DEFAULT_OFFICE_TITLE,
