@@ -4,10 +4,11 @@ import { ChannelsAdminView } from "@/components/console/setupgcp/ChannelsAdminVi
 import { OpenHandsAdminView } from "@/components/console/setupgcp/OpenHandsAdminView";
 import { PairingRequestsView } from "@/components/console/setupgcp/PairingRequestsView";
 import { SecretManagerNotice } from "@/components/console/setupgcp/SecretManagerNotice";
+import { TunnelsAdminView } from "@/components/console/setupgcp/TunnelsAdminView";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 import { useSetupGcpStore } from "@/store/console-stores/setupgcp-store";
 
-type Tab = "pairing" | "channels" | "openhands";
+type Tab = "pairing" | "channels" | "openhands" | "tunnels";
 
 const DEFAULT_OPERATOR_ID = "console-admin";
 
@@ -48,6 +49,9 @@ export function SetupGcpPage() {
         <TabButton active={tab === "openhands"} onClick={() => setTab("openhands")}>
           {t("setupGcp.tabs.openhands")}
         </TabButton>
+        <TabButton active={tab === "tunnels"} onClick={() => setTab("tunnels")}>
+          {t("setupGcp.tabs.tunnels")}
+        </TabButton>
       </div>
 
       {/*
@@ -61,8 +65,10 @@ export function SetupGcpPage() {
           <PairingRequestsView defaultDecidedBy={DEFAULT_OPERATOR_ID} />
         ) : tab === "channels" ? (
           <ChannelsAdminView />
-        ) : (
+        ) : tab === "openhands" ? (
           <OpenHandsAdminView />
+        ) : (
+          <TunnelsAdminView />
         )}
       </ErrorBoundary>
     </div>

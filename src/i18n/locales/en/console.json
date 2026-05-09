@@ -683,7 +683,8 @@
     "tabs": {
       "pairing": "Pairing Requests",
       "channels": "Notification Channels",
-      "openhands": "OpenHands"
+      "openhands": "OpenHands",
+      "tunnels": "Tunnels"
     },
     "secretsNotice": {
       "title": "Secrets stay in GCP Secret Manager",
@@ -823,6 +824,37 @@
         "test": "Test",
         "edit": "Edit",
         "runTest": "Run test"
+      }
+    },
+    "tunnels": {
+      "title": "Local tunnels",
+      "description": "Start and monitor local GCP/IAP tunnels used to reach private fleet services without exposing their UIs on the VPN.",
+      "registry": "Registry",
+      "autostart": "autostart",
+      "local": "Local",
+      "target": "Target",
+      "platformUnavailable": "Platform Service unavailable.",
+      "unmanagedHint": "This port is active, but this Platform Service did not start the process.",
+      "banner": {
+        "title": "Private services stay private",
+        "body": "The UI asks the local Platform Service to open registered tunnels. Tunnel definitions live in a local registry file, so every office can keep its own service map without hardcoding it in React."
+      },
+      "empty": {
+        "title": "No tunnels registered",
+        "description": "Add tunnel definitions to the local registry file to manage them from this page."
+      },
+      "status": {
+        "running": "running",
+        "active-unmanaged": "active outside manager",
+        "stopped": "stopped"
+      },
+      "actions": {
+        "start": "Start",
+        "starting": "Starting...",
+        "stop": "Stop",
+        "stopping": "Stopping...",
+        "restart": "Restart",
+        "restarting": "Restarting..."
       }
     }
   }

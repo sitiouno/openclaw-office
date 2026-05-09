@@ -681,7 +681,8 @@
     "tabs": {
       "pairing": "配对请求",
       "channels": "通知渠道",
-      "openhands": "OpenHands"
+      "openhands": "OpenHands",
+      "tunnels": "隧道"
     },
     "secretsNotice": {
       "title": "凭据保存在 GCP Secret Manager",
@@ -821,6 +822,37 @@
         "test": "测试",
         "edit": "编辑",
         "runTest": "运行测试"
+      }
+    },
+    "tunnels": {
+      "title": "本地隧道",
+      "description": "启动并监控本地 GCP/IAP 隧道，用于访问 fleet 内部服务，同时避免直接暴露服务 UI。",
+      "registry": "注册文件",
+      "autostart": "自动启动",
+      "local": "本地",
+      "target": "目标",
+      "platformUnavailable": "Platform Service 不可用。",
+      "unmanagedHint": "该端口已连通，但不是由当前 Platform Service 启动的进程。",
+      "banner": {
+        "title": "私有服务继续保持私有",
+        "body": "UI 通过本机 Platform Service 打开已注册的隧道。隧道定义保存在本地注册文件中，因此每个办公室都可以维护自己的服务映射，而不需要硬编码到 React。"
+      },
+      "empty": {
+        "title": "尚未注册隧道",
+        "description": "把隧道定义加入本地注册文件后，就可以在这里管理。"
+      },
+      "status": {
+        "running": "运行中",
+        "active-unmanaged": "外部已启动",
+        "stopped": "已停止"
+      },
+      "actions": {
+        "start": "启动",
+        "starting": "启动中...",
+        "stop": "停止",
+        "stopping": "停止中...",
+        "restart": "重启",
+        "restarting": "重启中..."
       }
     }
   }

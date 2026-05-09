@@ -6,6 +6,7 @@
 
 import { createServer } from "node:http";
 import { execFile } from "node:child_process";
+import { handleTunnelRoute, reconcileAutostartTunnels } from "./platform-tunnels.js";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -140,6 +141,16 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  try {
+    if (await handleTunnelRoute(req, res, url, sendJson)) {
+      return;
+    }
+  } catch (err) {
+    const statusCode = Number(err.statusCode) || 500;
+    sendJson(res, statusCode, { ok: false, error: String(err.message || err) });
+    return;
+  }
+
   const handler = routes.get(routeKey);
   if (!handler) {
     sendJson(res, 404, { error: "Not found" });
@@ -157,4 +168,14 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`[platform] listening on http://${HOST}:${PORT}`);
   console.log(`[platform] openclaw bin: ${OPENCLAW_BIN}`);
+  setTimeout(() => {
+    reconcileAutostartTunnels("startup").catch((err) => {
+      console.warn(`[platform] tunnel autostart failed: ${err.message}`);
+    });
+  }, 1000);
+  setInterval(() => {
+    reconcileAutostartTunnels("interval").catch((err) => {
+      console.warn(`[platform] tunnel reconcile failed: ${err.message}`);
+    });
+  }, 60_000);
 });

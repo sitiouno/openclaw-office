@@ -24,6 +24,45 @@ export interface ConfigSetupResult {
   results?: Array<{ key: string; ok: boolean; stderr?: string }>;
 }
 
+export type TunnelStatus = "running" | "active-unmanaged" | "stopped";
+
+export interface TunnelInfo {
+  id: string;
+  label: string;
+  description?: string;
+  kind: string;
+  project?: string;
+  zone?: string;
+  instance?: string;
+  localHost: string;
+  localPort: number;
+  remoteHost: string;
+  remotePort: number;
+  url: string;
+  autostart: boolean;
+  tags: string[];
+  running: boolean;
+  managed: boolean;
+  pid?: number;
+  status: TunnelStatus;
+  startedAt?: string;
+  logPath?: string;
+}
+
+export interface TunnelsListResult {
+  ok: boolean;
+  tunnels?: TunnelInfo[];
+  registryPath?: string;
+  error?: string;
+}
+
+export interface TunnelActionResult {
+  ok: boolean;
+  tunnel?: TunnelInfo;
+  message?: string;
+  error?: string;
+}
+
 async function request<T>(
   path: string,
   method: "GET" | "POST" = "GET",
@@ -76,6 +115,22 @@ export async function uninstallService(): Promise<ServiceActionResult> {
 
 export async function setupConfig(): Promise<ConfigSetupResult> {
   return request("/api/config/setup", "POST");
+}
+
+export async function listTunnels(): Promise<TunnelsListResult> {
+  return request("/api/tunnels", "GET");
+}
+
+export async function startTunnel(id: string): Promise<TunnelActionResult> {
+  return request(`/api/tunnels/${encodeURIComponent(id)}/start`, "POST", 45_000);
+}
+
+export async function stopTunnel(id: string): Promise<TunnelActionResult> {
+  return request(`/api/tunnels/${encodeURIComponent(id)}/stop`, "POST", 20_000);
+}
+
+export async function restartTunnel(id: string): Promise<TunnelActionResult> {
+  return request(`/api/tunnels/${encodeURIComponent(id)}/restart`, "POST", 50_000);
 }
 
 export async function checkAvailable(): Promise<boolean> {

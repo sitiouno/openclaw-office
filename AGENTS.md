@@ -1,5 +1,14 @@
 # OpenClaw Office — Agent Development Guide
 
+**Version:** 1.1.0  
+**Date:** 2026-05-09  
+**Version Control:** AI agents must commit product UI changes to this repository before deploying them to local node runtimes.
+
+## Changelog
+
+- `1.1.0` - Added source-of-truth rules for local runtimes and node-specific tunnel configuration.
+- `1.0.0` - Initial agent development guide.
+
 > [中文版](./AGENTS.zh.md)
 
 This document provides context and rules for AI coding assistants (Codex, Claude, Cursor Agent, etc.) working on this project.
@@ -18,6 +27,12 @@ Do not add GCP Terraform, VM provisioning, Tailscale setup, branch registry code
 - `SiteOneTech/sitiouno-software-factory-ai` for the software factory.
 - `SiteOneTech/hermes-agent` for Zeus/Hermes implementation.
 - `SiteOneTech/mirofish-original-ai-forecast` for MiroFish.
+
+## Runtime Source of Truth
+
+Never treat a running local office UI (`http://127.0.0.1:*`, `dist/`, systemd services, or npm-installed copies) as the source of truth. Product/UI changes must be made in this repository, validated, committed, pushed, and then pulled/built by each node.
+
+Node-specific values belong in local configuration or the fleet registry, not in React source. For the `Setup GCP > Tunnels` tab, tunnel definitions are read by the local Platform Service from `~/.openclaw-office/tunnels.json` or `OPENCLAW_TUNNELS_FILE`; use `examples/tunnels.local.example.json` as the template.
 
 ## Tech Stack
 
