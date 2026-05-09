@@ -27,6 +27,7 @@ export function TunnelsAdminView() {
   const startTunnel = useTunnelStore((s) => s.startTunnel);
   const stopTunnel = useTunnelStore((s) => s.stopTunnel);
   const restartTunnel = useTunnelStore((s) => s.restartTunnel);
+  const discoverAndRegisterTunnels = useTunnelStore((s) => s.discoverAndRegisterTunnels);
 
   useEffect(() => {
     void fetchTunnels();
@@ -49,15 +50,26 @@ export function TunnelsAdminView() {
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => fetchTunnels()}
-          disabled={loading}
-          className="flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-          {t("setupGcp.actions.refresh")}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void discoverAndRegisterTunnels()}
+            disabled={loading}
+            className="flex items-center gap-1.5 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+          >
+            <Network className="h-3.5 w-3.5" />
+            {t("setupGcp.tunnels.actions.discoverRegister")}
+          </button>
+          <button
+            type="button"
+            onClick={() => fetchTunnels()}
+            disabled={loading}
+            className="flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-400 dark:hover:bg-gray-700"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            {t("setupGcp.actions.refresh")}
+          </button>
+        </div>
       </div>
 
       <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-200">

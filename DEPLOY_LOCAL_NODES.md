@@ -1,11 +1,12 @@
 # Protocolo de Despliegue UI y Sincronización de Nodos Locales
 
-**Versión:** 1.1.0  
+**Versión:** 1.2.0  
 **Fecha:** 2026-05-09  
 **Control de versión:** cambios deben entrar por commit en `sitiouno/openclaw-office` y desplegarse por `pull`/build local en cada nodo.
 
 ## Changelog
 
+- `1.2.0` - Añade descubrimiento y registro automático de túneles locales hacia el registry de HQ.
 - `1.1.0` - Formaliza que el runtime local no es fuente de verdad y documenta el registro local de túneles.
 - `1.0.0` - Define responsabilidades iniciales de despliegue local y sincronización de skills.
 
@@ -38,3 +39,13 @@ Flujo obligatorio:
 La UI puede mostrar la pestaña `Tunnels` dentro de `Setup GCP`, pero las definiciones de túneles son configuración local del nodo. No se deben hardcodear proyectos, VMs, puertos privados ni rutas específicas de una sucursal dentro de React.
 
 El Platform Service lee las definiciones desde `~/.openclaw-office/tunnels.json` o desde la ruta indicada por `OPENCLAW_TUNNELS_FILE`. El formato base está en `examples/tunnels.local.example.json`.
+
+El nodo registra automáticamente esa lista en HQ al iniciar y durante la reconciliación periódica del Platform Service. El botón `Discover & register` fuerza la misma operación bajo demanda. Variables esperadas:
+
+```bash
+OPENCLAW_BRANCH_ID=<branch>
+KASPAR_REGISTRY_BASE_URL=http://openclaw-hq:8781
+OPENCLAW_TUNNELS_AUTO_REGISTER=1
+```
+
+La DB es el inventario canónico publicado por cada nodo. Si un túnel ya no existe en el registro local del nodo, la siguiente publicación lo elimina del inventario de ese branch en HQ. Secrets, tokens y passwords nunca deben ir dentro de la definición del túnel.

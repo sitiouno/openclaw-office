@@ -1,11 +1,12 @@
 # OpenClaw Office — Agent Development Guide
 
-**Version:** 1.1.0  
+**Version:** 1.2.0  
 **Date:** 2026-05-09  
 **Version Control:** AI agents must commit product UI changes to this repository before deploying them to local node runtimes.
 
 ## Changelog
 
+- `1.2.0` - Added automatic node-local tunnel discovery and HQ registry publication.
 - `1.1.0` - Added source-of-truth rules for local runtimes and node-specific tunnel configuration.
 - `1.0.0` - Initial agent development guide.
 
@@ -33,6 +34,8 @@ Do not add GCP Terraform, VM provisioning, Tailscale setup, branch registry code
 Never treat a running local office UI (`http://127.0.0.1:*`, `dist/`, systemd services, or npm-installed copies) as the source of truth. Product/UI changes must be made in this repository, validated, committed, pushed, and then pulled/built by each node.
 
 Node-specific values belong in local configuration or the fleet registry, not in React source. For the `Setup GCP > Tunnels` tab, tunnel definitions are read by the local Platform Service from `~/.openclaw-office/tunnels.json` or `OPENCLAW_TUNNELS_FILE`; use `examples/tunnels.local.example.json` as the template.
+
+The Platform Service automatically publishes the local tunnel inventory to the HQ registry when `OPENCLAW_BRANCH_ID` or `OPENCLAW_BRANCH` is set. Keep secrets out of tunnel definitions; the registry accepts topology and health metadata only.
 
 ## Tech Stack
 

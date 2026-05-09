@@ -63,6 +63,17 @@ export interface TunnelActionResult {
   error?: string;
 }
 
+export interface TunnelDiscoveryRegisterResult {
+  ok: boolean;
+  branchId?: string;
+  discovered?: number;
+  registered?: number;
+  registryUrl?: string;
+  tunnels?: TunnelInfo[];
+  message?: string;
+  error?: string;
+}
+
 async function request<T>(
   path: string,
   method: "GET" | "POST" = "GET",
@@ -131,6 +142,10 @@ export async function stopTunnel(id: string): Promise<TunnelActionResult> {
 
 export async function restartTunnel(id: string): Promise<TunnelActionResult> {
   return request(`/api/tunnels/${encodeURIComponent(id)}/restart`, "POST", 50_000);
+}
+
+export async function discoverAndRegisterTunnels(): Promise<TunnelDiscoveryRegisterResult> {
+  return request("/api/tunnels/discover-register", "POST", 60_000);
 }
 
 export async function checkAvailable(): Promise<boolean> {

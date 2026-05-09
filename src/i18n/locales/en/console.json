@@ -854,7 +854,8 @@
         "stop": "Stop",
         "stopping": "Stopping...",
         "restart": "Restart",
-        "restarting": "Restarting..."
+        "restarting": "Restarting...",
+        "discoverRegister": "Discover & register"
       }
     }
   }

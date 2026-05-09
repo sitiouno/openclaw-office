@@ -104,4 +104,18 @@ describe("platform-client", () => {
     const result = await setupConfig();
     expect(result.ok).toBe(true);
   });
+
+  it("discoverAndRegisterTunnels calls POST /api/tunnels/discover-register", async () => {
+    mockFetch.mockResolvedValueOnce({
+      json: () => Promise.resolve({ ok: true, discovered: 2, registered: 2 }),
+    });
+    const { discoverAndRegisterTunnels } = await importModule();
+    const result = await discoverAndRegisterTunnels();
+    expect(result.ok).toBe(true);
+    expect(result.registered).toBe(2);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "http://127.0.0.1:18790/api/tunnels/discover-register",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });

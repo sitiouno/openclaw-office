@@ -127,6 +127,101 @@ function publicTunnel(tunnel, status) {
   };
 }
 
+function resolveBranchId() {
+  return String(
+    process.env.OPENCLAW_BRANCH_ID ||
+      process.env.OPENCLAW_BRANCH ||
+      process.env.KASPAR_REGISTRY_SOURCE ||
+      "",
+  ).trim();
+}
+
+function resolveRegistryBaseUrl() {
+  return String(process.env.KASPAR_REGISTRY_BASE_URL || "http://openclaw-hq:8781")
+    .trim()
+    .replace(/\/+$/u, "");
+}
+
+function tunnelTarget(tunnel) {
+  if (tunnel.kind === "gcp-iap") {
+    return {
+      project: tunnel.project,
+      zone: tunnel.zone,
+      instance: tunnel.instance,
+      remote_host: tunnel.remoteHost,
+      remote_port: tunnel.remotePort,
+    };
+  }
+  if (tunnel.kind === "command") {
+    return {
+      command: tunnel.command,
+      args: Array.isArray(tunnel.args) ? tunnel.args.map((arg) => String(arg)) : [],
+    };
+  }
+  return {
+    remote_host: tunnel.remoteHost,
+    remote_port: tunnel.remotePort,
+  };
+}
+
+function toRegistryTunnel(tunnel, status) {
+  return {
+    tunnel_id: tunnel.id,
+    label: tunnel.label,
+    kind: tunnel.kind,
+    local_url: tunnel.url,
+    target: tunnelTarget(tunnel),
+    autostart: tunnel.autostart,
+    status: status.status,
+    metadata: {
+      tags: tunnel.tags,
+      running: status.running,
+      managed: status.managed,
+      local_host: tunnel.localHost,
+      local_port: tunnel.localPort,
+      log_path: status.logPath,
+    },
+  };
+}
+
+async function postRegistryTunnels(branchId, registryTunnels) {
+  const baseUrl = resolveRegistryBaseUrl();
+  const token = String(process.env.KASPAR_REGISTRY_API_TOKEN || "").trim();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const res = await fetch(`${baseUrl}/v1/branches/${encodeURIComponent(branchId)}/tunnels/upsert`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ source: "openclaw-office-platform", tunnels: registryTunnels }),
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    let body = {};
+    if (text) {
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = { detail: text };
+      }
+    }
+    if (!res.ok) {
+      const detail = body.detail || body.error || `registry HTTP ${res.status}`;
+      throw new Error(String(detail));
+    }
+    return { baseUrl, body };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function getTunnelStatus(tunnel, state) {
   const record = state[tunnel.id] || {};
   const pid = Number(record.pid);
@@ -199,6 +294,38 @@ async function handleTunnelsList() {
     tunnels.push(publicTunnel(tunnel, await getTunnelStatus(tunnel, state)));
   }
   return { ok: true, tunnels, registryPath: TUNNELS_FILE };
+}
+
+async function handleTunnelDiscoverRegister() {
+  const branchId = resolveBranchId();
+  if (!branchId) {
+    return {
+      ok: false,
+      discovered: 0,
+      registered: 0,
+      error: "OPENCLAW_BRANCH_ID, OPENCLAW_BRANCH, or KASPAR_REGISTRY_SOURCE is required",
+    };
+  }
+  const registry = await readTunnelRegistry();
+  const state = await readTunnelState();
+  const tunnels = [];
+  const registryTunnels = [];
+  for (const tunnel of registry.tunnels) {
+    const status = await getTunnelStatus(tunnel, state);
+    tunnels.push(publicTunnel(tunnel, status));
+    registryTunnels.push(toRegistryTunnel(tunnel, status));
+  }
+  const published = await postRegistryTunnels(branchId, registryTunnels);
+  const registered = Number(published.body?.tunnel_count ?? registryTunnels.length);
+  return {
+    ok: true,
+    branchId,
+    discovered: registryTunnels.length,
+    registered,
+    registryUrl: published.baseUrl,
+    tunnels,
+    message: `registered ${registered} of ${registryTunnels.length} discovered tunnels`,
+  };
 }
 
 async function handleTunnelStart(id) {
@@ -305,6 +432,7 @@ export async function reconcileAutostartTunnels(reason = "manual") {
   tunnelReconcileRunning = true;
   try {
     await autostartTunnels(reason);
+    await autoRegisterTunnels(reason);
   } finally {
     tunnelReconcileRunning = false;
   }
@@ -321,9 +449,26 @@ async function autostartTunnels(reason = "startup") {
   }
 }
 
+async function autoRegisterTunnels(reason = "startup") {
+  const enabled = String(process.env.OPENCLAW_TUNNELS_AUTO_REGISTER || "1").trim().toLowerCase();
+  if (!["1", "true", "yes", "on"].includes(enabled)) return;
+  if (!resolveBranchId()) return;
+  try {
+    await handleTunnelDiscoverRegister();
+  } catch (err) {
+    console.warn(`[platform] tunnel registry sync failed during ${reason}: ${err.message}`);
+  }
+}
+
 export async function handleTunnelRoute(req, res, url, sendJson) {
   if (req.method === "GET" && url.pathname === "/api/tunnels") {
     sendJson(res, 200, await handleTunnelsList());
+    return true;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/tunnels/discover-register") {
+    const result = await handleTunnelDiscoverRegister();
+    sendJson(res, result.ok ? 200 : 500, result);
     return true;
   }
 

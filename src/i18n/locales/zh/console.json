@@ -852,7 +852,8 @@
         "stop": "停止",
         "stopping": "停止中...",
         "restart": "重启",
-        "restarting": "重启中..."
+        "restarting": "重启中...",
+        "discoverRegister": "发现并注册"
       }
     }
   }
