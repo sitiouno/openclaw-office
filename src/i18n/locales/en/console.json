@@ -827,21 +827,22 @@
       }
     },
     "tunnels": {
-      "title": "Local tunnels",
-      "description": "Start and monitor local GCP/IAP tunnels used to reach private fleet services without exposing their UIs on the VPN.",
-      "registry": "Registry",
+      "title": "Local node tunnels",
+      "description": "Monitor only the tunnels that exist on this node. The UI reads the node-local Platform Service and does not list tunnels owned by other offices.",
+      "registry": "Local registry file",
       "autostart": "autostart",
+      "detected": "detected locally",
       "local": "Local",
       "target": "Target",
       "platformUnavailable": "Platform Service unavailable.",
       "unmanagedHint": "This port is active, but this Platform Service did not start the process.",
       "banner": {
-        "title": "Private services stay private",
-        "body": "The UI asks the local Platform Service to open registered tunnels. Tunnel definitions live in a local registry file, so every office can keep its own service map without hardcoding it in React."
+        "title": "Local-only operational view",
+        "body": "This page is informational for the current node. It combines the local registry file with SSH/GCP port-forward processes detected from the local shell, then can publish that node-owned snapshot for inventory."
       },
       "empty": {
-        "title": "No tunnels registered",
-        "description": "Add tunnel definitions to the local registry file to manage them from this page."
+        "title": "No local tunnels found",
+        "description": "Add tunnel definitions to the local registry file or start a local SSH/GCP port-forward process to see it here."
       },
       "status": {
         "running": "running",

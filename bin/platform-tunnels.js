@@ -7,6 +7,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import net from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { discoverShellTunnels } from "./platform-tunnel-discovery.js";
 
 const STATE_DIR = join(homedir(), ".openclaw-office");
 const TUNNELS_FILE = process.env.OPENCLAW_TUNNELS_FILE || join(STATE_DIR, "tunnels.json");
@@ -123,6 +124,7 @@ function publicTunnel(tunnel, status) {
     url: tunnel.url,
     autostart: tunnel.autostart,
     tags: tunnel.tags,
+    source: tunnel.source || "configured",
     ...status,
   };
 }
@@ -237,6 +239,34 @@ async function getTunnelStatus(tunnel, state) {
   };
 }
 
+async function listLocalTunnelInventory() {
+  const registry = await readTunnelRegistry();
+  const state = await readTunnelState();
+  const tunnels = [];
+  const configuredPorts = new Set();
+  for (const tunnel of registry.tunnels) {
+    configuredPorts.add(`${tunnel.localHost}:${tunnel.localPort}`);
+    tunnels.push(publicTunnel(tunnel, await getTunnelStatus(tunnel, state)));
+  }
+
+  for (const tunnel of await discoverShellTunnels()) {
+    const localKey = `${tunnel.localHost}:${tunnel.localPort}`;
+    if (configuredPorts.has(localKey)) {
+      continue;
+    }
+    tunnels.push(publicTunnel(tunnel, {
+      running: true,
+      managed: false,
+      pid: tunnel.pid,
+      status: "active-unmanaged",
+      startedAt: undefined,
+      logPath: undefined,
+    }));
+  }
+
+  return tunnels.sort((a, b) => a.label.localeCompare(b.label));
+}
+
 function buildTunnelCommand(tunnel) {
   if (tunnel.kind === "command") {
     const command = String(tunnel.command || "").trim();
@@ -287,13 +317,7 @@ async function findTunnel(id) {
 }
 
 async function handleTunnelsList() {
-  const registry = await readTunnelRegistry();
-  const state = await readTunnelState();
-  const tunnels = [];
-  for (const tunnel of registry.tunnels) {
-    tunnels.push(publicTunnel(tunnel, await getTunnelStatus(tunnel, state)));
-  }
-  return { ok: true, tunnels, registryPath: TUNNELS_FILE };
+  return { ok: true, tunnels: await listLocalTunnelInventory(), registryPath: TUNNELS_FILE };
 }
 
 async function handleTunnelDiscoverRegister() {
@@ -306,15 +330,8 @@ async function handleTunnelDiscoverRegister() {
       error: "OPENCLAW_BRANCH_ID, OPENCLAW_BRANCH, or KASPAR_REGISTRY_SOURCE is required",
     };
   }
-  const registry = await readTunnelRegistry();
-  const state = await readTunnelState();
-  const tunnels = [];
-  const registryTunnels = [];
-  for (const tunnel of registry.tunnels) {
-    const status = await getTunnelStatus(tunnel, state);
-    tunnels.push(publicTunnel(tunnel, status));
-    registryTunnels.push(toRegistryTunnel(tunnel, status));
-  }
+  const tunnels = await listLocalTunnelInventory();
+  const registryTunnels = tunnels.map((tunnel) => toRegistryTunnel(tunnel, tunnel));
   const published = await postRegistryTunnels(branchId, registryTunnels);
   const registered = Number(published.body?.tunnel_count ?? registryTunnels.length);
   return {

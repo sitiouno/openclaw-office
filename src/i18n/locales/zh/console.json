@@ -825,21 +825,22 @@
       }
     },
     "tunnels": {
-      "title": "本地隧道",
-      "description": "启动并监控本地 GCP/IAP 隧道，用于访问 fleet 内部服务，同时避免直接暴露服务 UI。",
-      "registry": "注册文件",
+      "title": "本节点隧道",
+      "description": "只监控当前节点上存在的隧道。UI 读取本节点的 Platform Service，不展示其他办公室拥有的隧道。",
+      "registry": "本地注册文件",
       "autostart": "自动启动",
+      "detected": "本地检测",
       "local": "本地",
       "target": "目标",
       "platformUnavailable": "Platform Service 不可用。",
       "unmanagedHint": "该端口已连通，但不是由当前 Platform Service 启动的进程。",
       "banner": {
-        "title": "私有服务继续保持私有",
-        "body": "UI 通过本机 Platform Service 打开已注册的隧道。隧道定义保存在本地注册文件中，因此每个办公室都可以维护自己的服务映射，而不需要硬编码到 React。"
+        "title": "仅限本地节点的运维视图",
+        "body": "此页面仅展示当前节点信息。它合并本地注册文件与从本地 shell 检测到的 SSH/GCP 端口转发进程，并可将该节点自己的快照发布为 inventory。"
       },
       "empty": {
-        "title": "尚未注册隧道",
-        "description": "把隧道定义加入本地注册文件后，就可以在这里管理。"
+        "title": "未发现本地隧道",
+        "description": "将隧道定义加入本地注册文件，或启动本地 SSH/GCP 端口转发进程后，可在这里看到。"
       },
       "status": {
         "running": "运行中",

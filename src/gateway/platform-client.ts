@@ -1,4 +1,4 @@
-const PLATFORM_BASE_URL = "http://127.0.0.1:18790";
+const DEFAULT_PLATFORM_API_URL = "/api/platform";
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 export interface ServiceStatusData {
@@ -41,6 +41,7 @@ export interface TunnelInfo {
   url: string;
   autostart: boolean;
   tags: string[];
+  source?: "configured" | "shell" | string;
   running: boolean;
   managed: boolean;
   pid?: number;
@@ -74,6 +75,27 @@ export interface TunnelDiscoveryRegisterResult {
   error?: string;
 }
 
+interface RuntimePlatformConfig {
+  platformApiUrl?: string;
+}
+
+function readRuntimeConfig(): RuntimePlatformConfig {
+  if (typeof window === "undefined") return {};
+  const injected = (window as unknown as Record<string, unknown>).__OPENCLAW_CONFIG__ as
+    | RuntimePlatformConfig
+    | undefined;
+  return injected ?? {};
+}
+
+function resolvePlatformBaseUrl(): string {
+  const runtime = readRuntimeConfig();
+  const fromRuntime = (runtime.platformApiUrl ?? "").trim();
+  const fromEnv = (
+    (import.meta.env as unknown as Record<string, string | undefined>).VITE_PLATFORM_API_URL ?? ""
+  ).trim();
+  return (fromRuntime || fromEnv || DEFAULT_PLATFORM_API_URL).replace(/\/+$/u, "");
+}
+
 async function request<T>(
   path: string,
   method: "GET" | "POST" = "GET",
@@ -83,7 +105,7 @@ async function request<T>(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch(`${PLATFORM_BASE_URL}${path}`, {
+    const res = await fetch(`${resolvePlatformBaseUrl()}${path}`, {
       method,
       signal: controller.signal,
       headers: { "Content-Type": "application/json" },

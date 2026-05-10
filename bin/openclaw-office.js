@@ -7,6 +7,7 @@ import { readFile, writeFile, access, readdir, unlink, mkdir } from "node:fs/pro
 import { resolve, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { networkInterfaces, homedir } from "node:os";
+import { handlePlatformApiProxy } from "./platform-proxy.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const distDir = resolve(__dirname, "..", "dist");
@@ -947,6 +948,16 @@ const server = createServer(async (req, res) => {
   if (pathname.startsWith("/api/branch-kanban") || pathname === "/api/branch-report") {
     try {
       const handled = await handleBranchKanbanApi(req, res, pathname);
+      if (handled) return;
+    } catch (err) {
+      sendJson(res, 500, { ok: false, error: String(err) });
+      return;
+    }
+  }
+
+  if (pathname === "/api/platform" || pathname.startsWith("/api/platform/")) {
+    try {
+      const handled = await handlePlatformApiProxy(req, res, pathname, url.search);
       if (handled) return;
     } catch (err) {
       sendJson(res, 500, { ok: false, error: String(err) });

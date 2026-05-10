@@ -10,6 +10,12 @@ interface ImportMetaEnv {
   readonly VITE_OFFICE_TITLE?: string;
   readonly VITE_BRANCH_LABEL?: string;
   /**
+   * Browser-facing base URL for Platform Service commands. By default the
+   * packaged Office server proxies `/api/platform/*` to the node-local
+   * Platform Service, which keeps remote/tunneled UIs working.
+   */
+  readonly VITE_PLATFORM_API_URL?: string;
+  /**
    * Base URL of the local HQ sidecar that exposes the registry-API surface
    * (pairing requests + notification channels + notify broadcast).
    * Defaults to `http://openclaw-hq:8781` on the Tailscale tailnet — the

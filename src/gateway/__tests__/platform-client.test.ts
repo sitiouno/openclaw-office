@@ -24,7 +24,7 @@ describe("platform-client", () => {
     const result = await checkAvailable();
     expect(result).toBe(true);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://127.0.0.1:18790/api/health",
+      "/api/platform/api/health",
       expect.objectContaining({ method: "GET" }),
     );
   });
@@ -55,7 +55,7 @@ describe("platform-client", () => {
     const result = await startService();
     expect(result.ok).toBe(true);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://127.0.0.1:18790/api/service/start",
+      "/api/platform/api/service/start",
       expect.objectContaining({ method: "POST" }),
     );
   });
@@ -114,7 +114,7 @@ describe("platform-client", () => {
     expect(result.ok).toBe(true);
     expect(result.registered).toBe(2);
     expect(mockFetch).toHaveBeenCalledWith(
-      "http://127.0.0.1:18790/api/tunnels/discover-register",
+      "/api/platform/api/tunnels/discover-register",
       expect.objectContaining({ method: "POST" }),
     );
   });
